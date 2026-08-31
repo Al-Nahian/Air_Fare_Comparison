@@ -1,0 +1,17 @@
+# Line-ending policy.
+#
+# Store everything as LF in the repository and check out native endings locally.
+# This matters because the app is developed on Windows but deployed to Linux:
+# without it, files can reach the server with CRLF, and git prints a
+# "LF will be replaced by CRLF" warning on every single add.
+* text=auto eol=lf
+
+# The Windows launcher is the exception. cmd.exe can mis-parse a batch file that
+# uses bare LF endings, particularly around labels and goto, so this one is
+# always checked out with CRLF.
+*.bat text eol=crlf
+
+# Binary assets: never convert, never diff as text.
+*.png binary
+*.jpg binary
+*.ico binary
