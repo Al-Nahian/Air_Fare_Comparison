@@ -72,22 +72,6 @@ day, so a varying run time makes figures non-comparable.
 
 ---
 
-## Deployment
-
-See **`requirements.txt`** for the full server specification: runtime versions, CPU/RAM sizing,
-Chromium's OS dependencies, nginx settings and the install sequence.
-
-Three things that silently break a deployment if missed:
-
-1. **Node 18+** — the Shohoz scraper uses global `fetch()`. Ubuntu's default `apt` Node is often
-   older; install from NodeSource.
-2. **`npx playwright install --with-deps chromium`** — without `--with-deps` Chromium installs but
-   won't launch, and every search returns zero flights with no obvious cause.
-3. **nginx `proxy_read_timeout` ≥ 90s** and WebSocket `Upgrade` headers — searches legitimately run
-   20–75 seconds, and the 60s default cuts long ones off with a 504.
-
----
-
 ## Layout
 
 ```
