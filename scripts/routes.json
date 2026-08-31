@@ -1,0 +1,18 @@
+{
+  "_comment": "Routes tracked by daily-snapshot.js. leadDays = how many days AHEAD of the scrape date to price, so every row stays comparable over time (a 30 means 'the fare 30 days out', whatever today's date is). Edit freely — no code changes needed. Add returnAfterDays to a route to price it as a bundled round trip instead of one-way.",
+  "runLabel": "daily",
+  "routes": [
+    { "from": "DAC", "to": "KTM", "leadDays": 30 },
+    { "from": "DAC", "to": "DXB", "leadDays": 30 },
+    { "from": "DAC", "to": "MLE", "leadDays": 30 },
+    { "from": "DAC", "to": "JFK", "leadDays": 30 },
+
+    { "from": "DAC", "to": "CXB", "leadDays": 14 },
+    { "from": "DAC", "to": "CGP", "leadDays": 14 },
+    { "from": "DAC", "to": "SPD", "leadDays": 14 },
+    { "from": "DAC", "to": "RJH", "leadDays": 14 },
+    { "from": "DAC", "to": "BZL", "leadDays": 14 },
+    { "from": "DAC", "to": "JSR", "leadDays": 14 },
+    { "from": "DAC", "to": "ZYL", "leadDays": 14 }
+  ]
+}

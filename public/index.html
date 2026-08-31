@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Air Competition Analysis — ShareTrip vs GoZayaan vs Shohoz</title>
+  <meta name="description" content="Compare flight prices across ShareTrip, GoZayaan, and Shohoz with detailed price breakdowns including bKash discounts.">
+  <link rel="icon" type="image/png" href="/images/Flight%20Comparison.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/styles.css">
+  <script>
+    // Applied before first paint (not in app.js) so the page never flashes the wrong theme.
+    (function () {
+      var saved = localStorage.getItem('theme');
+      var theme = saved || (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+      document.documentElement.setAttribute('data-theme', theme);
+    })();
+  </script>
+</head>
+<body>
+  <!-- Interactive background: parallax orbs + cursor-follow focus glow + a plane gliding
+       left→right behind the glass cards (frosted by their backdrop-filter) -->
+  <div class="bg-blob bg-blob--1"></div>
+  <div class="bg-blob bg-blob--2"></div>
+  <div class="bg-blob bg-blob--3"></div>
+  <div class="bg-plane"></div>
+  <div class="bg-cursor-glow"></div>
+
+  <div class="app">
+    <!-- Header -->
+    <header class="header">
+      <div class="header__logo">
+        <span class="header__icon"><img src="/images/Flight%20Comparison.png" alt="Air Competition Analysis logo" /></span>
+        <div>
+          <h1 class="header__title">Air Competition Analysis</h1>
+          <p class="header__subtitle">Compare prices across ShareTrip, GoZayaan &amp; Shohoz</p>
+        </div>
+      </div>
+      <button type="button" id="themeToggle" class="theme-toggle" title="Switch theme" aria-label="Switch between light and dark mode">
+        <span class="theme-toggle__icon theme-toggle__icon--sun">☀️</span>
+        <span class="theme-toggle__icon theme-toggle__icon--moon">🌙</span>
+      </button>
+    </header>
+
+    <!-- Search Form -->
+    <section class="search-section">
+      <form id="searchForm" class="search-form">
+        <div class="trip-type-toggle" role="radiogroup" aria-label="Trip type">
+          <button type="button" class="trip-type-btn trip-type-btn--active" data-trip="oneway" aria-pressed="true">One Way</button>
+          <button type="button" class="trip-type-btn" data-trip="roundtrip" aria-pressed="false">Round Trip</button>
+        </div>
+
+        <div class="search-form__field">
+          <label for="fromAirport" class="search-form__label">From</label>
+          <div class="search-form__input-wrap">
+            <span class="search-form__input-icon">🛫</span>
+            <input
+              type="text"
+              id="fromAirport"
+              class="search-form__input"
+              placeholder="e.g. Dhaka (DAC)"
+              autocomplete="off"
+              required
+            />
+            <input type="hidden" id="fromCode" />
+            <div id="fromDropdown" class="autocomplete-dropdown"></div>
+          </div>
+        </div>
+
+        <button type="button" class="search-form__swap" id="swapBtn" title="Swap route">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 16V4m0 0L3 8m4-4l4 4m6 4v12m0 0l4-4m-4 4l-4-4"/></svg>
+        </button>
+
+        <div class="search-form__field">
+          <label for="toAirport" class="search-form__label">To</label>
+          <div class="search-form__input-wrap">
+            <span class="search-form__input-icon">🛬</span>
+            <input
+              type="text"
+              id="toAirport"
+              class="search-form__input"
+              placeholder="e.g. Cox's Bazar (CXB)"
+              autocomplete="off"
+              required
+            />
+            <input type="hidden" id="toCode" />
+            <div id="toDropdown" class="autocomplete-dropdown"></div>
+          </div>
+        </div>
+
+        <div class="search-form__field">
+          <label for="travelDate" class="search-form__label">Departure Date</label>
+          <div class="search-form__input-wrap">
+            <span class="search-form__input-icon">📅</span>
+            <input
+              type="date"
+              id="travelDate"
+              class="search-form__input"
+              required
+            />
+          </div>
+        </div>
+
+        <div class="search-form__field" id="returnDateField" style="display:none;">
+          <label for="returnDate" class="search-form__label">Return Date</label>
+          <div class="search-form__input-wrap">
+            <span class="search-form__input-icon">📅</span>
+            <input
+              type="date"
+              id="returnDate"
+              class="search-form__input"
+            />
+          </div>
+        </div>
+
+        <button type="submit" class="search-form__submit" id="compareBtn">
+          <span class="search-form__submit-text">Compare Prices</span>
+          <span class="search-form__submit-loader" style="display:none;">
+            <span class="spinner"></span>
+            Comparing...
+          </span>
+        </button>
+      </form>
+    </section>
+
+    <!-- Progress Section -->
+    <section id="progressSection" class="progress-section" style="display:none;">
+      <div class="progress-card">
+        <h3 class="progress-card__title">Searching for the best prices...</h3>
+        <div id="searchSteps" class="search-steps"></div>
+        <button
+          type="button"
+          id="advancedStatusToggle"
+          class="advanced-toggle"
+          aria-expanded="false"
+          aria-controls="progressItems"
+        >
+          <span class="advanced-toggle__chevron" aria-hidden="true">▸</span>
+          <span class="advanced-toggle__label">View advanced status</span>
+        </button>
+        <div class="progress-card__items progress-card__items--collapsed" id="progressItems">
+          <div class="progress-item" data-platform="sharetrip">
+            <span class="progress-item__dot"></span>
+            <span class="progress-item__logo" style="--platform-color: #0ea5e9;"><img class="platform-logo" src="/images/platforms/sharetrip.svg" alt="" />ShareTrip</span>
+            <span class="progress-item__status">Waiting...</span>
+          </div>
+          <div class="progress-item" data-platform="gozayaan">
+            <span class="progress-item__dot"></span>
+            <span class="progress-item__logo" style="--platform-color: #2563eb;"><img class="platform-logo" src="/images/platforms/gozayaan.png" alt="" />GoZayaan</span>
+            <span class="progress-item__status">Waiting...</span>
+          </div>
+          <div class="progress-item" data-platform="shohoz">
+            <span class="progress-item__dot"></span>
+            <span class="progress-item__logo" style="--platform-color: #16a34a;"><img class="platform-logo" src="/images/platforms/shohoz.png" alt="" />Shohoz</span>
+            <span class="progress-item__status">Waiting...</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Results Section -->
+    <section id="resultsSection" class="results-section" style="display:none;">
+      <div class="results-header">
+        <h2 class="results-header__title" id="resultsTitle"></h2>
+        <p class="results-header__subtitle" id="resultsSubtitle"></p>
+        <button class="results-header__export" id="exportBtn" title="Download CSV">
+          📥 Export CSV
+        </button>
+      </div>
+      <div id="airlineFilter" class="airline-filter"></div>
+      <div id="resultsContainer" class="results-container"></div>
+    </section>
+
+    <!-- Empty State -->
+    <section id="emptyState" class="empty-state">
+      <div class="empty-state__content">
+        <span class="empty-state__icon">🔍</span>
+        <h3>Search for flights to compare prices</h3>
+        <p>Enter your route and travel date above to see side-by-side price comparisons from all three platforms.</p>
+      </div>
+    </section>
+  </div>
+
+  <!-- Comparison List -->
+  <button id="comparisonListToggle" class="comparison-list-toggle" style="display:none;">
+    🗂 Comparison List <span id="comparisonListCount" class="comparison-list-toggle__count">0</span>
+  </button>
+
+  <div id="comparisonListPanel" class="comparison-list-panel" style="display:none;">
+    <div class="comparison-list-panel__header">
+      <h3>Comparison List</h3>
+      <div class="comparison-list-panel__actions">
+        <button id="comparisonListExport" class="comparison-list-panel__export">📥 Export CSV</button>
+        <button id="comparisonListClose" class="comparison-list-panel__close">✕</button>
+      </div>
+    </div>
+    <div id="comparisonListItems" class="comparison-list-panel__items"></div>
+  </div>
+
+  <script src="/js/app.js"></script>
+</body>
+</html>

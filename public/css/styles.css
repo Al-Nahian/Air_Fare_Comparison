@@ -1,0 +1,1669 @@
+/* ============================================
+   Flight Price Comparison — Design System
+   ============================================ */
+
+/* --- CSS Variables --- */
+:root {
+  /* Background */
+  --bg-primary: #0a0f1e;
+  --bg-secondary: #111827;
+  /* Translucent so the glass/backdrop-blur effect is visible over the background. */
+  --bg-card: rgba(18, 24, 40, 0.45);
+  --bg-card-hover: rgba(30, 41, 59, 0.6);
+  --bg-glass: rgba(255, 255, 255, 0.04);
+  --bg-glass-border: rgba(255, 255, 255, 0.14);
+
+  /* Text */
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --text-accent: #38bdf8;
+
+  /* Accent gradient */
+  --accent-from: #06b6d4;
+  --accent-to: #3b82f6;
+  --accent-gradient: linear-gradient(135deg, var(--accent-from), var(--accent-to));
+
+  /* Platform colors (brand colors) */
+  --sharetrip: #0ea5e9;
+  --sharetrip-bg: rgba(14, 165, 233, 0.1);
+  --sharetrip-border: rgba(14, 165, 233, 0.25);
+
+  --gozayaan: #2563eb;
+  --gozayaan-bg: rgba(37, 99, 235, 0.1);
+  --gozayaan-border: rgba(37, 99, 235, 0.25);
+
+  --shohoz: #16a34a;
+  --shohoz-bg: rgba(22, 163, 74, 0.1);
+  --shohoz-border: rgba(22, 163, 74, 0.25);
+
+  /* Status */
+  --success: #22c55e;
+  --error: #ef4444;
+  --warning: #f59e0b;
+
+  /* Sizing */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+
+  /* Shadows */
+  --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.3), 0 1px 4px rgba(0, 0, 0, 0.2);
+  --shadow-glow: 0 0 30px rgba(6, 182, 212, 0.15);
+
+  /* Theme-dependent surfaces not covered by the tokens above */
+  --bg-dropdown: #1e293b;
+  --overlay-hover: rgba(255, 255, 255, 0.05);
+  --overlay-hover-soft: rgba(255, 255, 255, 0.02);
+  --border-hover: rgba(255, 255, 255, 0.12);
+  --scrollbar-thumb: rgba(255, 255, 255, 0.1);
+  --scrollbar-thumb-hover: rgba(255, 255, 255, 0.2);
+
+  /* App background — demo-style: layered radial color glows over a deep base (dark theme). */
+  --bg-gradient:
+    radial-gradient(900px 520px at 12% 8%, rgba(59, 130, 246, 0.30), transparent 60%),
+    radial-gradient(760px 520px at 85% 14%, rgba(6, 182, 212, 0.24), transparent 60%),
+    radial-gradient(900px 720px at 72% 92%, rgba(22, 163, 74, 0.20), transparent 65%),
+    linear-gradient(180deg, #070c16 0%, #0a1020 55%, #05070d 100%);
+  /* Opaque base painted on the root canvas (see html rule). Guarantees the translucent glass
+     cards always have something solid behind them, so fast scrolling can never flash white. */
+  --app-base: #070c16;
+}
+
+/* --- Light Theme --- */
+:root[data-theme="light"] {
+  --bg-primary: #f4f6fb;
+  --bg-secondary: #ffffff;
+  --bg-card: rgba(255, 255, 255, 0.75);
+  --bg-card-hover: rgba(255, 255, 255, 0.9);
+  --bg-glass: rgba(15, 23, 42, 0.03);
+  --bg-glass-border: rgba(15, 23, 42, 0.14);
+
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #7c8aa0;
+  --text-accent: #0284c7;
+
+  --shadow-card: 0 4px 24px rgba(15, 23, 42, 0.08), 0 1px 4px rgba(15, 23, 42, 0.05);
+  --shadow-glow: 0 0 30px rgba(6, 182, 212, 0.2);
+
+  --bg-dropdown: #ffffff;
+  --overlay-hover: rgba(15, 23, 42, 0.04);
+  --overlay-hover-soft: rgba(15, 23, 42, 0.02);
+  --border-hover: rgba(15, 23, 42, 0.16);
+  --scrollbar-thumb: rgba(15, 23, 42, 0.15);
+  --scrollbar-thumb-hover: rgba(15, 23, 42, 0.25);
+
+  /* Light theme: same layered glow structure over a bright base. */
+  --bg-gradient:
+    radial-gradient(900px 520px at 12% 8%, rgba(59, 130, 246, 0.20), transparent 60%),
+    radial-gradient(760px 520px at 85% 14%, rgba(6, 182, 212, 0.18), transparent 60%),
+    radial-gradient(900px 720px at 72% 92%, rgba(22, 163, 74, 0.16), transparent 65%),
+    linear-gradient(180deg, #eef4ff 0%, #f4f8ff 55%, #eafaf1 100%);
+  --app-base: #eef4ff;
+
+  /* Translucent glass cards so the background/orbs/beams show through. */
+  --bg-card: rgba(255, 255, 255, 0.6);
+  --bg-card-hover: rgba(255, 255, 255, 0.75);
+}
+
+:root[data-theme="light"] .bg-blob {
+  opacity: 0.28;
+}
+
+/* Slightly stronger in light mode to survive the brighter background, but still subtle. */
+:root[data-theme="light"] .bg-plane {
+  --plane-op: 0.4;
+}
+
+/* Search card (the hero the plane crosses) is made more translucent in light mode so the
+   frosted plane shows through — the inner inputs keep their own backgrounds, so labels/values
+   stay readable. Flight result cards keep the crisper --bg-card for price legibility. */
+:root[data-theme="light"] .search-form {
+  background: rgba(255, 255, 255, 0.55);
+}
+
+/* --- Reset & Base --- */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  color: var(--text-primary);
+  min-height: 100vh;
+  overflow-x: hidden;
+  position: relative;
+}
+
+/* Opaque base colour on the root element. The root's background always paints the page canvas,
+   which is exactly the surface `backdrop-filter` samples — so with a solid colour here the
+   translucent glass cards can never reveal browser-white while scrolling a long list. This is the
+   real cure for the white band that `background-attachment: fixed` on <body> used to cause. */
+html {
+  background: var(--app-base);
+}
+
+/* The decorative gradient (colour glows over the base) rides on its own fixed layer instead of a
+   fixed background-attachment, which had to be re-rasterised every scroll frame. As a fixed layer
+   the compositor keeps it in place for free. z-index -1 sits it above the root canvas but behind
+   the orbs/plane (z-index 0) and content; if it ever fails to paint mid-scroll, the opaque root
+   canvas shows through rather than white. */
+html::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: var(--bg-gradient);
+  pointer-events: none;
+}
+
+/* Diagonal light beams ("god rays") sweeping across the background, like the reference demo. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: -20%;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(115deg, transparent 30%, rgba(147, 197, 253, 0.14) 36%, transparent 43%),
+    linear-gradient(115deg, transparent 47%, rgba(125, 211, 252, 0.10) 53%, transparent 60%),
+    linear-gradient(115deg, transparent 64%, rgba(134, 239, 172, 0.08) 69%, transparent 75%);
+  filter: blur(6px);
+}
+
+:root[data-theme="light"] body::before {
+  opacity: 0.5;
+}
+
+/* --- Interactive Background Orbs --- */
+/* Soft blurred blue/green orbs that parallax with the cursor (driven from app.js). The inner
+   `transform` is set by JS via the --px/--py custom properties, so its own idle drift and the
+   mouse parallax compose without fighting each other. */
+.bg-blob {
+  position: fixed;
+  border-radius: 50%;
+  filter: blur(110px);
+  opacity: 0.4;
+  pointer-events: none;
+  z-index: 0;
+  will-change: transform;
+  transform: translate(var(--px, 0px), var(--py, 0px));
+}
+
+.bg-blob--1 {
+  width: 520px;
+  height: 520px;
+  background: radial-gradient(circle, #3b82f6 0%, transparent 70%);
+  top: -140px;
+  right: -90px;
+}
+
+.bg-blob--2 {
+  width: 480px;
+  height: 480px;
+  background: radial-gradient(circle, #16a34a 0%, transparent 70%);
+  bottom: -140px;
+  left: -100px;
+}
+
+.bg-blob--3 {
+  width: 400px;
+  height: 400px;
+  background: radial-gradient(circle, #06b6d4 0%, transparent 70%);
+  top: 38%;
+  left: 42%;
+}
+
+/* Focus highlight that follows the cursor — a soft radial "spotlight" that shifts the visual
+   focus of the background as the mouse moves. Moved from JS with translate3d.
+
+   This is deliberately a fixed-size element that gets TRANSFORMED, not a viewport-sized gradient
+   whose centre point moves. Animating the gradient's position repaints the entire viewport on
+   every mouse move, which in turn forces every on-screen glass card to recompute its
+   backdrop-filter — that combination is what made the results list stutter. A transform is
+   compositor-only, so moving this costs no repaint at all. */
+.bg-cursor-glow {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 840px;
+  height: 840px;
+  margin: -420px 0 0 -420px; /* centre the circle on its transform origin */
+  z-index: 0;
+  pointer-events: none;
+  background: radial-gradient(closest-side circle, rgba(6, 182, 212, 0.16), transparent 72%);
+  transform: translate3d(50vw, 38vh, 0);
+  will-change: transform;
+}
+
+/* Plane silhouette gliding left→right across the search-card band. It's painted behind the
+   glass cards (z-index 0, outside .app), so their backdrop-filter frosts it as it passes —
+   the "shape behind the glass blur" effect. The shape is a gradient clipped to a plane mask. */
+.bg-plane {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 300px;
+  height: 260px;
+  z-index: 0;
+  pointer-events: none;
+  /* Kept subtle — soft, frosted, low opacity. */
+  --plane-op: 0.28;
+  opacity: 0;
+  filter: blur(4px);
+  background: linear-gradient(120deg, #2563eb 0%, #0891b2 50%, #15803d 100%);
+  -webkit-mask: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1NzYgNTEyIj48cGF0aCBmaWxsPSIjMDAwIiBkPSJNNDgyLjMgMTkyQzUxNi41IDE5MiA1NzYgMjIxIDU3NiAyNTZjMCAzNi01OS41IDY0LTkzLjcgNjRsLTExNi42IDBMMjY1LjIgNDk1LjljLTUuNyAxMC0xNi4zIDE2LjEtMjcuOCAxNi4xbC01Ni4yIDBjLTEwLjYgMC0xOC4zLTEwLjItMTUuNC0yMC40bDQ5LTE3MS42TDExMiAzMjBsLTQzLjIgNTcuNmMtMy45IDUuMS05LjkgOC4xLTE2LjMgOC40bC0yNS42IDBjLTguNSAwLTE0LjktNy43LTEzLjItMTYuMUwzMiAyNTYgNS43IDEzNy43Yy0xLjctOC4zIDQuNy0xNi4xIDEzLjItMTYuMWwyNS42IDBjNi40IDAgMTIuNCAzIDE2LjMgOC40TDExMiAxOTJsMTAyLjkgMEwxNjUuOSAyMC40QzE2MyAxMC4yIDE3MC43IDAgMTgxLjMgMGw1Ni4yIDBjMTEuNSAwIDIyLjEgNi4xIDI3LjggMTYuMUwzNjUuNyAxOTJsMTE2LjYgMHoiLz48L3N2Zz4=") no-repeat center / contain;
+  mask: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1NzYgNTEyIj48cGF0aCBmaWxsPSIjMDAwIiBkPSJNNDgyLjMgMTkyQzUxNi41IDE5MiA1NzYgMjIxIDU3NiAyNTZjMCAzNi01OS41IDY0LTkzLjcgNjRsLTExNi42IDBMMjY1LjIgNDk1LjljLTUuNyAxMC0xNi4zIDE2LjEtMjcuOCAxNi4xbC01Ni4yIDBjLTEwLjYgMC0xOC4zLTEwLjItMTUuNC0yMC40bDQ5LTE3MS42TDExMiAzMjBsLTQzLjIgNTcuNmMtMy45IDUuMS05LjkgOC4xLTE2LjMgOC40bC0yNS42IDBjLTguNSAwLTE0LjktNy43LTEzLjItMTYuMUwzMiAyNTYgNS43IDEzNy43Yy0xLjctOC4zIDQuNy0xNi4xIDEzLjItMTYuMWwyNS42IDBjNi40IDAgMTIuNCAzIDE2LjMgOC40TDExMiAxOTJsMTAyLjkgMEwxNjUuOSAyMC40QzE2MyAxMC4yIDE3MC43IDAgMTgxLjMgMGw1Ni4yIDBjMTEuNSAwIDIyLjEgNi4xIDI3LjggMTYuMUwzNjUuNyAxOTJsMTE2LjYgMHoiLz48L3N2Zz4=") no-repeat center / contain;
+  /* Smooth arc across the screen: enters bottom-left facing the top-right corner at 45° (NE),
+     climbs to a level cruise at top-centre, then descends to the bottom-right (SE). The base
+     plane sits ~horizontal (E) at rotate(0), so rotate(-45)=NE (nose to top-right), rotate(0)=E
+     (level), rotate(45)=SE — the nose stays tangent to the arc. Nine evenly-spaced waypoints +
+     LINEAR timing = constant speed, no stutter/stops. */
+  animation: planeArc 26s linear infinite;
+}
+
+@keyframes planeArc {
+  0%    { transform: translate(-320px, 82vh) rotate(-45deg); opacity: 0; }               /* entering, facing top-right 45° */
+  12.5% { transform: translate(calc(12.5vw - 275px), 57.5vh) rotate(-34deg); opacity: var(--plane-op); }
+  25%   { transform: translate(calc(25vw - 230px), 40vh) rotate(-22deg); }
+  37.5% { transform: translate(calc(37.5vw - 185px), 29.5vh) rotate(-11deg); }
+  50%   { transform: translate(calc(50vw - 140px), 26vh) rotate(0deg); }                 /* cruise, level (top-centre) */
+  62.5% { transform: translate(calc(62.5vw - 95px), 29.5vh) rotate(11deg); }
+  75%   { transform: translate(calc(75vw - 50px), 40vh) rotate(22deg); }
+  87.5% { transform: translate(calc(87.5vw - 5px), 57.5vh) rotate(34deg); opacity: var(--plane-op); }
+  100%  { transform: translate(calc(100vw + 40px), 82vh) rotate(45deg); opacity: 0; }    /* exits bottom-right (SE) */
+}
+
+/* On the results / comparison page the plane should pass less often (slower cycle). */
+body.has-results .bg-plane {
+  animation-duration: 48s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bg-plane { animation: none; opacity: 0; }
+}
+
+/* --- App Container --- */
+.app {
+  position: relative;
+  z-index: 1;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 32px 24px 80px;
+}
+
+/* --- Header --- */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 40px;
+  animation: fadeInDown 0.6s ease-out;
+}
+
+.header__logo {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.header__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-glow);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.header__icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.header__title {
+  font-family: 'Outfit', sans-serif;
+  font-size: 1.8rem;
+  font-weight: 700;
+  background: var(--accent-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  line-height: 1.2;
+}
+
+.header__subtitle {
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+/* Theme Toggle */
+.theme-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 1px solid var(--bg-glass-border);
+  background: var(--bg-glass);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 1.2rem;
+}
+
+.theme-toggle:hover {
+  border-color: var(--accent-from);
+  transform: rotate(15deg) scale(1.05);
+}
+
+.theme-toggle__icon {
+  display: none;
+  line-height: 1;
+}
+
+/* Dark mode is the default look (no attribute set yet on first paint) — show the moon */
+.theme-toggle__icon--moon {
+  display: inline;
+}
+
+:root[data-theme="light"] .theme-toggle__icon--moon {
+  display: none;
+}
+
+:root[data-theme="light"] .theme-toggle__icon--sun {
+  display: inline;
+}
+
+/* --- Search Form --- */
+.search-section {
+  position: relative;
+  /* Lift the whole search area above the results/empty-state sections. The autocomplete
+     dropdown's own z-index is trapped inside .search-form's backdrop-filter stacking context,
+     so without this the dropdown items that overflow below the form get covered by (and become
+     unclickable behind) the later-in-DOM .empty-state / .results-section. */
+  z-index: 20;
+  margin-bottom: 32px;
+  animation: fadeInUp 0.6s ease-out 0.1s both;
+}
+
+.search-form {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  padding: 24px;
+  background: var(--bg-card);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--bg-glass-border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-card);
+  flex-wrap: wrap;
+  transition: background 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+}
+
+/* Lift/brighten on hover — a subtle glass "lit up" effect. */
+.search-form:hover {
+  background: var(--bg-card-hover);
+  border-color: rgba(6, 182, 212, 0.4);
+  box-shadow: var(--shadow-card), 0 0 30px rgba(6, 182, 212, 0.14);
+}
+
+/* Trip-type toggle (One Way / Round Trip) — a pill segmented control on its own row above the
+   form fields. */
+.trip-type-toggle {
+  flex-basis: 100%;
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  width: fit-content;
+  background: var(--bg-glass);
+  border: 1px solid var(--bg-glass-border);
+  border-radius: 999px;
+}
+
+.trip-type-btn {
+  padding: 7px 22px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: 'Inter', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.trip-type-btn:hover {
+  color: var(--text-primary);
+}
+
+.trip-type-btn--active {
+  background: var(--accent-gradient);
+  color: #fff;
+}
+
+.search-form__field {
+  flex: 1;
+  min-width: 180px;
+  position: relative;
+}
+
+.search-form__label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.search-form__input-wrap {
+  position: relative;
+}
+
+.search-form__input-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 1rem;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.search-form__input {
+  width: 100%;
+  padding: 12px 12px 12px 40px;
+  background: var(--bg-glass);
+  border: 1px solid var(--bg-glass-border);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-family: 'Inter', sans-serif;
+  font-size: 0.95rem;
+  transition: all 0.3s ease;
+  outline: none;
+}
+
+.search-form__input::placeholder {
+  color: var(--text-muted);
+}
+
+.search-form__input:focus {
+  border-color: var(--accent-from);
+  box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.15), 0 0 20px rgba(6, 182, 212, 0.1);
+  background: var(--overlay-hover);
+}
+
+.search-form__input[type="date"] {
+  cursor: pointer;
+}
+
+.search-form__input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(0.7);
+  cursor: pointer;
+}
+
+/* Swap Button */
+.search-form__swap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--bg-glass-border);
+  border-radius: 50%;
+  background: var(--bg-glass);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  flex-shrink: 0;
+  margin-bottom: 2px;
+}
+
+.search-form__swap:hover {
+  background: rgba(6, 182, 212, 0.15);
+  border-color: var(--accent-from);
+  color: var(--accent-from);
+  transform: rotate(180deg);
+}
+
+/* Submit Button */
+.search-form__submit {
+  padding: 12px 28px;
+  background: var(--accent-gradient);
+  border: none;
+  border-radius: var(--radius-md);
+  color: #fff;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  min-height: 46px;
+}
+
+.search-form__submit:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(6, 182, 212, 0.35);
+}
+
+.search-form__submit:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.search-form__submit:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* --- Autocomplete Dropdown --- */
+.autocomplete-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: var(--bg-dropdown);
+  border: 1px solid var(--bg-glass-border);
+  border-radius: var(--radius-md);
+  max-height: 220px;
+  overflow-y: auto;
+  z-index: 100;
+  display: none;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+}
+
+.autocomplete-dropdown.active {
+  display: block;
+  animation: dropdownIn 0.2s ease-out;
+}
+
+@keyframes dropdownIn {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.autocomplete-item {
+  padding: 10px 14px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  transition: all 0.15s ease;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.autocomplete-item:hover,
+.autocomplete-item.active {
+  background: rgba(6, 182, 212, 0.1);
+  color: var(--text-primary);
+}
+
+.autocomplete-item__code {
+  font-weight: 600;
+  color: var(--accent-from);
+  font-size: 0.8rem;
+  background: rgba(6, 182, 212, 0.12);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+/* --- Progress Section --- */
+.progress-section {
+  margin-bottom: 32px;
+  animation: fadeInUp 0.4s ease-out;
+}
+
+.progress-card {
+  padding: 28px 32px;
+  background: var(--bg-card);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--bg-glass-border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-card);
+}
+
+.progress-card__title {
+  font-family: 'Outfit', sans-serif;
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 20px;
+  color: var(--text-primary);
+}
+
+/* Animated "AI assistant" style step feed shown while searching. */
+.search-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.search-step {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 14px;
+  border-radius: var(--radius-md);
+  background: var(--bg-glass);
+  border: 1px solid var(--bg-glass-border);
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  animation: stepIn 0.4s ease-out both;
+  transition: opacity 0.3s ease, border-color 0.3s ease;
+}
+
+@keyframes stepIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.search-step__icon {
+  font-size: 1.05rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.search-step__text {
+  flex: 1;
+}
+
+.search-step__marker {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Active (current) step: brighter, cyan-tinted, with a pulsing dot. */
+.search-step--active {
+  color: var(--text-primary);
+  border-color: rgba(6, 182, 212, 0.4);
+  background: rgba(6, 182, 212, 0.06);
+}
+
+.search-step--active .search-step__text {
+  color: var(--text-primary);
+}
+
+.search-step--active .search-step__marker {
+  position: relative;
+}
+
+.search-step--active .search-step__marker::after {
+  content: '';
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--accent-from);
+  box-shadow: 0 0 10px var(--accent-from);
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+/* Completed step: dimmed with a green check. */
+.search-step--done {
+  opacity: 0.6;
+}
+
+.search-step--done .search-step__marker::after {
+  content: '✓';
+  color: var(--success);
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+/* "View advanced status" toggle — the per-platform rows are collapsed by default. */
+.advanced-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background: var(--bg-glass);
+  border: 1px solid var(--bg-glass-border);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-family: 'Inter', sans-serif;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.advanced-toggle:hover {
+  border-color: var(--accent-from);
+  color: var(--text-primary);
+}
+
+.advanced-toggle__chevron {
+  display: inline-block;
+  font-size: 0.7rem;
+  transition: transform 0.25s ease;
+}
+
+.advanced-toggle[aria-expanded="true"] .advanced-toggle__chevron {
+  transform: rotate(90deg);
+}
+
+.progress-card__items {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 16px;
+  max-height: 600px;
+  opacity: 1;
+  overflow: hidden;
+  transition: max-height 0.35s ease, opacity 0.25s ease, margin-top 0.35s ease;
+}
+
+.progress-card__items--collapsed {
+  max-height: 0;
+  opacity: 0;
+  margin-top: 0;
+}
+
+.progress-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--bg-glass);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--bg-glass-border);
+  transition: all 0.3s ease;
+}
+
+.progress-item__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  flex-shrink: 0;
+  transition: all 0.3s ease;
+}
+
+.progress-item[data-status="starting"] .progress-item__dot,
+.progress-item[data-status="searching"] .progress-item__dot,
+.progress-item[data-status="logging_in"] .progress-item__dot,
+.progress-item[data-status="extracting"] .progress-item__dot {
+  background: var(--accent-from);
+  box-shadow: 0 0 10px var(--accent-from);
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+.progress-item[data-status="done"] .progress-item__dot {
+  background: var(--success);
+  box-shadow: 0 0 8px var(--success);
+}
+
+.progress-item[data-status="error"] .progress-item__dot {
+  background: var(--error);
+  box-shadow: 0 0 8px var(--error);
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.5; transform: scale(1.3); }
+}
+
+.progress-item__logo {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  color: var(--platform-color);
+  min-width: 110px;
+}
+
+/* Platform brand logos (ShareTrip / GoZayaan / Shohoz) */
+.platform-logo {
+  height: 18px;
+  width: 18px;
+  object-fit: contain;
+  flex-shrink: 0;
+  vertical-align: middle;
+  border-radius: 4px;
+}
+
+.progress-item__status {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+.progress-item[data-status="done"] .progress-item__status {
+  color: var(--success);
+}
+
+.progress-item[data-status="done"] .progress-item__status::before {
+  content: '✓ ';
+}
+
+.progress-item[data-status="error"] .progress-item__status {
+  color: var(--error);
+}
+
+.progress-item[data-status="error"] .progress-item__status::before {
+  content: '✗ ';
+}
+
+/* --- Results Section --- */
+.results-section {
+  animation: fadeInUp 0.5s ease-out;
+}
+
+.results-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.results-header__title {
+  font-family: 'Outfit', sans-serif;
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.results-header__subtitle {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  width: 100%;
+}
+
+.results-header__export {
+  padding: 8px 16px;
+  background: var(--bg-glass);
+  border: 1px solid var(--bg-glass-border);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-family: 'Inter', sans-serif;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  /* No backdrop-filter here either — same reasoning as .airline-filter__pill above. */
+}
+
+.results-header__export:hover {
+  background: rgba(6, 182, 212, 0.1);
+  border-color: var(--accent-from);
+  color: var(--text-primary);
+}
+
+.airline-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.airline-filter__pill {
+  padding: 6px 14px;
+  background: var(--bg-glass);
+  border: 1px solid var(--bg-glass-border);
+  border-radius: 999px;
+  color: var(--text-secondary);
+  font-family: 'Inter', sans-serif;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  /* Deliberately NO backdrop-filter. There is one pill per airline — ~20 on a route like DAC-DXB
+     — and each backdrop-filter element forces its own backdrop readback and blur every frame.
+     Measured: dropping the blur from these pills alone took the results page from ~44fps to
+     ~60fps while scrolling. At 26px tall the blur was imperceptible anyway; the translucent
+     background and border carry the glass look on their own. */
+}
+
+.airline-filter__pill:hover {
+  border-color: var(--accent-from);
+  color: var(--text-primary);
+}
+
+.airline-filter__pill--active {
+  background: var(--accent-gradient);
+  border-color: transparent;
+  color: #fff;
+  font-weight: 600;
+}
+
+/* --- Flight Comparison Card --- */
+.results-container {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.flight-card {
+  background: var(--bg-card);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--bg-glass-border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+  /* Specific properties, not `all` — `all` also transitions layout-affecting properties, so every
+     hover forced style/layout work on a card holding three price tables. */
+  transition: background-color 0.3s ease, border-color 0.3s ease, transform 0.3s ease,
+    box-shadow 0.3s ease;
+  animation: cardSlideIn 0.5s ease-out both;
+}
+
+.flight-card:hover {
+  background: var(--bg-card-hover);
+  border-color: rgba(6, 182, 212, 0.4);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-card), 0 8px 32px rgba(0, 0, 0, 0.2), 0 0 30px rgba(6, 182, 212, 0.14);
+}
+
+/* Flight info header bar */
+.flight-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 20px 24px;
+  background: linear-gradient(135deg, rgba(255,255,255,0.04) 0%, transparent 100%);
+  border-bottom: 1px solid var(--bg-glass-border);
+}
+
+.flight-card__airline {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.flight-card__airline-icon {
+  width: 36px;
+  height: 36px;
+  background: var(--accent-gradient);
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+  position: relative;
+  overflow: hidden;
+}
+
+.flight-card__airline-icon--logo {
+  background: #fff;
+  padding: 5px;
+}
+
+.flight-card__airline-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.flight-card__airline-fallback {
+  display: none;
+  width: 100%;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+}
+
+.flight-card__airline-name {
+  font-weight: 600;
+  font-size: 1rem;
+  color: var(--text-primary);
+}
+
+.flight-card__flight-no {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-top: 1px;
+}
+
+.flight-card__route-info {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.flight-card__time {
+  text-align: center;
+}
+
+.flight-card__time-value {
+  font-family: 'Outfit', sans-serif;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.flight-card__time-label {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.flight-card__route-arrow {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 80px;
+}
+
+/* Round-trip: outbound + return stacked vertically, each a tagged leg row. */
+.flight-card__route-info--stacked {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+}
+
+.flight-card__leg {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.flight-card__leg-tag {
+  min-width: 78px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--accent-from);
+}
+
+.flight-card__leg-tag--return {
+  color: #16a34a;
+}
+
+.flight-card__route-line {
+  width: 100%;
+  height: 1px;
+  background: linear-gradient(90deg, var(--text-muted), var(--accent-from), var(--text-muted));
+  position: relative;
+}
+
+.flight-card__route-line::after {
+  content: '✈';
+  position: absolute;
+  right: -4px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.7rem;
+}
+
+.flight-card__duration {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.flight-card__stops {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+  white-space: nowrap;
+}
+
+.flight-card__meta {
+  display: flex;
+  gap: 12px;
+}
+
+.flight-card__badge {
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.72rem;
+  font-weight: 500;
+  background: var(--bg-glass);
+  border: 1px solid var(--bg-glass-border);
+  color: var(--text-secondary);
+}
+
+.flight-card__add-btn {
+  margin-left: auto;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  font-family: 'Inter', sans-serif;
+  background: var(--bg-glass);
+  border: 1px solid var(--accent-from);
+  color: var(--accent-from);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.flight-card__add-btn:hover:not(:disabled) {
+  background: var(--accent-gradient);
+  color: #fff;
+  border-color: transparent;
+}
+
+.flight-card__add-btn:disabled {
+  color: var(--success);
+  border-color: var(--success);
+  cursor: default;
+}
+
+/* Price comparison grid */
+.flight-card__prices {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0;
+}
+
+.platform-price {
+  padding: 20px;
+  border-right: 1px solid var(--bg-glass-border);
+  /* Three of these per flight card, so ~570 on an international search — only the property the
+     hover rule actually changes gets a transition. */
+  transition: background-color 0.3s ease;
+  position: relative;
+}
+
+.platform-price:last-child {
+  border-right: none;
+}
+
+.platform-price:hover {
+  background: var(--overlay-hover-soft);
+}
+
+.platform-price--winner {
+  background: rgba(34, 197, 94, 0.05) !important;
+}
+
+.platform-price__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--bg-glass-border);
+}
+
+.platform-price__name {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
+  font-size: 0.85rem;
+  padding: 3px 10px;
+  border-radius: 20px;
+}
+
+.platform-price__name--sharetrip {
+  color: var(--sharetrip);
+  background: var(--sharetrip-bg);
+  border: 1px solid var(--sharetrip-border);
+}
+
+.platform-price__name--gozayaan {
+  color: var(--gozayaan);
+  background: var(--gozayaan-bg);
+  border: 1px solid var(--gozayaan-border);
+}
+
+.platform-price__name--shohoz {
+  color: var(--shohoz);
+  background: var(--shohoz-bg);
+  border: 1px solid var(--shohoz-border);
+}
+
+.platform-price__winner-badge {
+  display: none;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  white-space: nowrap;
+  color: var(--success);
+  background: rgba(34, 197, 94, 0.12);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  padding: 2px 8px;
+  border-radius: 20px;
+  animation: badgePulse 2s ease-in-out infinite;
+}
+
+.platform-price--winner .platform-price__winner-badge {
+  display: flex;
+}
+
+@keyframes badgePulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.2); }
+  50%      { box-shadow: 0 0 12px 2px rgba(34, 197, 94, 0.15); }
+}
+
+/* The platform-price winner is a different award from the green "best discounted price",
+   so it gets a neutral white treatment to keep the two visually distinct. */
+.platform-price__winner-badge--platform {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.45);
+  animation-name: badgePulseNeutral;
+}
+
+/* White on a light card would vanish — use the theme's dark ink instead. */
+:root[data-theme="light"] .platform-price__winner-badge--platform {
+  color: var(--text-primary);
+  background: rgba(15, 23, 42, 0.06);
+  border-color: rgba(15, 23, 42, 0.3);
+}
+
+@keyframes badgePulseNeutral {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.18); }
+  50%      { box-shadow: 0 0 12px 2px rgba(255, 255, 255, 0.14); }
+}
+
+.platform-price__rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.price-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.85rem;
+}
+
+.price-row__label {
+  color: var(--text-muted);
+}
+
+.price-row__value {
+  color: var(--text-secondary);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.price-row--total {
+  margin-top: 8px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--bg-glass-border);
+}
+
+.price-row--total .price-row__label {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.price-row--total .price-row__value {
+  color: var(--text-primary);
+  font-weight: 700;
+  font-size: 1.05rem;
+}
+
+.price-row--bkash {
+  margin-top: 4px;
+}
+
+.price-row--bkash .price-row__label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.price-row--bkash .price-row__value {
+  color: #e74894;
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.price-row--discount {
+  margin-top: 2px;
+}
+
+.price-row--discount .price-row__value {
+  color: var(--success);
+  font-size: 0.8rem;
+}
+
+/* No data state */
+.platform-price--empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 150px;
+  color: var(--text-muted);
+  font-style: italic;
+  font-size: 0.85rem;
+}
+
+/* --- Empty State --- */
+.empty-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 24px;
+  animation: fadeInUp 0.6s ease-out 0.3s both;
+}
+
+.empty-state__content {
+  text-align: center;
+  max-width: 420px;
+}
+
+.empty-state__icon {
+  display: block;
+  font-size: 3rem;
+  margin-bottom: 16px;
+  opacity: 0.6;
+}
+
+.empty-state__content h3 {
+  font-family: 'Outfit', sans-serif;
+  font-size: 1.3rem;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: var(--text-primary);
+}
+
+.empty-state__content p {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+/* --- Animations --- */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeInDown {
+  from { opacity: 0; transform: translateY(-20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes cardSlideIn {
+  from { opacity: 0; transform: translateY(30px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Stagger card animations */
+.flight-card:nth-child(1) { animation-delay: 0.1s; }
+.flight-card:nth-child(2) { animation-delay: 0.2s; }
+.flight-card:nth-child(3) { animation-delay: 0.3s; }
+.flight-card:nth-child(4) { animation-delay: 0.4s; }
+.flight-card:nth-child(5) { animation-delay: 0.5s; }
+
+/* --- Scrollbar --- */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}
+
+/* --- Responsive --- */
+@media (max-width: 900px) {
+  .search-form {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .search-form__swap {
+    align-self: center;
+    transform: rotate(90deg);
+  }
+
+  .search-form__swap:hover {
+    transform: rotate(270deg);
+  }
+
+  .search-form__submit {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .flight-card__prices {
+    grid-template-columns: 1fr;
+  }
+
+  .platform-price {
+    border-right: none;
+    border-bottom: 1px solid var(--bg-glass-border);
+  }
+
+  .platform-price:last-child {
+    border-bottom: none;
+  }
+
+  .flight-card__header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 600px) {
+  .app {
+    padding: 16px 12px 60px;
+  }
+
+  .header__title {
+    font-size: 1.4rem;
+  }
+
+  .header__icon {
+    width: 48px;
+    height: 48px;
+    font-size: 1.8rem;
+  }
+
+  .theme-toggle {
+    width: 38px;
+    height: 38px;
+    font-size: 1rem;
+  }
+
+  .search-form {
+    padding: 16px;
+  }
+
+  .flight-card__route-info {
+    gap: 12px;
+  }
+}
+
+/* --- Comparison List --- */
+.comparison-list-toggle {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  border-radius: 999px;
+  border: none;
+  background: var(--accent-gradient);
+  color: #fff;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(6, 182, 212, 0.35);
+  transition: transform 0.2s ease;
+}
+
+.comparison-list-toggle:hover {
+  transform: translateY(-2px);
+}
+
+.comparison-list-toggle__count {
+  background: rgba(255, 255, 255, 0.25);
+  border-radius: 999px;
+  padding: 1px 9px;
+  font-size: 0.78rem;
+}
+
+.comparison-list-panel {
+  position: fixed;
+  right: 24px;
+  bottom: 88px;
+  z-index: 500;
+  width: 360px;
+  max-height: 60vh;
+  flex-direction: column;
+  background: var(--bg-secondary);
+  border: 1px solid var(--bg-glass-border);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+}
+
+.comparison-list-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--bg-glass-border);
+}
+
+.comparison-list-panel__header h3 {
+  font-family: 'Outfit', sans-serif;
+  font-size: 1rem;
+  color: var(--text-primary);
+}
+
+.comparison-list-panel__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.comparison-list-panel__export {
+  padding: 6px 12px;
+  background: var(--bg-glass);
+  border: 1px solid var(--bg-glass-border);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.comparison-list-panel__export:hover {
+  border-color: var(--accent-from);
+  color: var(--text-primary);
+}
+
+.comparison-list-panel__close {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 4px;
+}
+
+.comparison-list-panel__close:hover {
+  color: var(--text-primary);
+}
+
+.comparison-list-panel__items {
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.comparison-list-panel__empty {
+  padding: 16px 8px;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.comparison-list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 8px;
+  border-radius: var(--radius-sm);
+}
+
+.comparison-list-item:hover {
+  background: var(--bg-glass);
+}
+
+.comparison-list-item__route {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.comparison-list-item__meta {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.comparison-list-item__remove {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 4px 8px;
+}
+
+.comparison-list-item__remove:hover {
+  color: var(--error);
+}

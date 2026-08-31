@@ -1,0 +1,10 @@
+node_modules/
+.env
+results/
+*.log
+.claude
+.vscode
+.sessions/
+
+# AGENT.md declares itself must never be committed or pushed
+AGENT.md

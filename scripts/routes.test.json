@@ -1,0 +1,7 @@
+{
+  "_comment": "Two-route subset for validating the pipeline quickly. Not the nightly config.",
+  "routes": [
+    { "from": "DAC", "to": "KTM", "leadDays": 30 },
+    { "from": "DAC", "to": "CXB", "leadDays": 14 }
+  ]
+}

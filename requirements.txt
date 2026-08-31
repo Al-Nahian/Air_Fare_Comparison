@@ -1,0 +1,23 @@
+**Server Specs & Hosting**
+
+* **Type:** VPS or VM with root/sudo access. *Do not use serverless (Vercel/Lambda) or shared hosting.*
+* **OS:** Ubuntu 22.04 or 24.04 (x86_64 strongly preferred; ARM is risky for Playwright).
+* **Resources:** 4-8 vCPU, 8GB RAM (4GB bare minimum), 20GB SSD.
+* **Location:** Bangladesh (ideal) or SG/IN. We are scraping local BD sites, so foreign IPs might get blocked or fed bad pricing.
+
+**Environment Setup**
+
+* **Node.js:** v20 or v22 LTS. **Crucial:** Install via NodeSource, not the default Ubuntu `apt` (which installs older versions). We need at least v18 for global `fetch()`.
+* **Chromium (Playwright):** Run `npx playwright install --with-deps chromium`. The `--with-deps` flag is mandatory to grab the ~40 OS libraries Chromium needs to run headless.
+
+**Nginx & Network Tweaks**
+
+* **WebSockets:** Ensure Nginx passes `Upgrade` and `Connection "upgrade"` headers. The front-end uses WebSockets for live progress tracking.
+* **Timeouts:** Bump `proxy_read_timeout` and `proxy_send_timeout` to `120s`. Scrapes can take 20-75 seconds, so Nginx's default 60s timeout will prematurely kill them with a 504.
+* **Ports:** Open 80/443 for web traffic and 22 for SSH.
+
+**Configuration & Execution**
+
+* **Env variables:** Copy `.env.example` to `.env` (chmod 600) and fill in the platform credentials.
+* **Web Server:** Spin up the app using PM2 to keep it alive (e.g., `MAX_CONCURRENT_COMPARISONS=2 PORT=3000 pm2 start server.js`).
+* **Nightly Cron:** Set up a 3 AM cron job for `scripts/daily-snapshot.js` to handle the automated daily route pricing. (e.g., `0 3 * * * cd /opt/air-price && /usr/bin/node scripts/daily-snapshot.js >> results/cron.log 2>&1`).
