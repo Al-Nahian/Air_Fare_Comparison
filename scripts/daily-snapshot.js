@@ -85,11 +85,15 @@ function buildRows(entries) {
 
     const shohozPlatform = shohoz.platformPrice ?? '';
     const sharetripDiscount = sharetrip.totalBkash ?? '';
-    const difference = (shohoz.platformPrice != null && sharetrip.totalBkash != null)
-      ? shohoz.platformPrice - sharetrip.totalBkash
+    // Final price against final price: the discounted totals the dashboard shows with each
+    // platform's coupon applied (OCDOM/GPINT on Shohoz, BKASHDOM/FLYGPSTAR on ShareTrip).
+    // Positive means Shohoz is the dearer of the two. Identical to the Excel sheet's formula so
+    // the two outputs can never disagree.
+    const difference = (shohoz.totalBkash != null && sharetrip.totalBkash != null)
+      ? shohoz.totalBkash - sharetrip.totalBkash
       : '';
-    const percentage = (difference !== '' && shohoz.platformPrice)
-      ? `${((difference / shohoz.platformPrice) * 100).toFixed(2)}%`
+    const percentage = (difference !== '' && shohoz.totalBkash)
+      ? `${((difference / shohoz.totalBkash) * 100).toFixed(2)}%`
       : '';
 
     return [

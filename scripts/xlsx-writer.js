@@ -80,12 +80,13 @@ function dataRow({ match }) {
   const st = match.platforms?.sharetrip || {};
   const gz = match.platforms?.gozayaan || {};
 
-  // Difference is measured against Shohoz's DISCOUNTED price: how much more (positive) or less
-  // (negative) a rival charges for the same flight, and that gap as a share of Shohoz's price.
-  const shohozDiscount = sh.totalBkash;
-  const diff = (rivalDiscount) =>
-    shohozDiscount != null && rivalDiscount != null ? rivalDiscount - shohozDiscount : '';
-  const pct = (d) => (d !== '' && shohozDiscount ? d / shohozDiscount : '');
+  // Both sides are FINAL prices — the discounted totals the dashboard shows with each platform's
+  // coupon applied (OCDOM/GPINT on Shohoz, BKASHDOM/FLYGPSTAR on ShareTrip, the best Hot Deal on
+  // GoZayaan). A positive difference means Shohoz is the dearer of the two.
+  const shohozFinal = sh.totalBkash;
+  const diff = (rivalFinal) =>
+    shohozFinal != null && rivalFinal != null ? shohozFinal - rivalFinal : '';
+  const pct = (d) => (d !== '' && shohozFinal ? d / shohozFinal : '');
 
   const stDiff = diff(st.totalBkash);
   const gzDiff = diff(gz.totalBkash);
