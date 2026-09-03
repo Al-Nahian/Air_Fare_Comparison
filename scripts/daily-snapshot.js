@@ -171,12 +171,14 @@ function buildEntry(result, route, leadDays, journeyDate) {
 async function main() {
   // Config file is overridable so a subset can be run ad hoc, or a second schedule added later.
   const configFile = process.argv[2] || 'routes.json';
+  // A subset config is an ad-hoc test: keep it away from the real master and out of SharePoint.
+  const isTest = configFile !== 'routes.json';
   const config = JSON.parse(fs.readFileSync(path.join(__dirname, configFile), 'utf8'));
   const routes = config.routes || [];
   const searchDate = localDate();
   const startedAt = Date.now();
 
-  log(`=== snapshot start — ${routes.length} routes, search date ${searchDate} ===`);
+  log(`=== snapshot start — ${routes.length} routes, search date ${searchDate}${isTest ? ' [TEST: ' + configFile + ', will not publish]' : ''} ===`);
 
   const entries = [];
   const failures = [];
@@ -240,7 +242,7 @@ async function main() {
     // that is locked, missing or mid-sync is logged and skipped rather than failing the run.
     try {
       const xlsx = await writeDailySheet({
-        entries, searchDate, publishPath: process.env.SNAPSHOT_XLSX,
+        entries, searchDate, publishPath: process.env.SNAPSHOT_XLSX, isTest,
       });
       log(`excel — sheet "${xlsx.sheet}" added to the master (${xlsx.sheetCount} sheets)`);
       log(xlsx.publish.ok

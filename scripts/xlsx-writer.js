@@ -31,7 +31,11 @@ const fs = require('fs');
 const path = require('path');
 const ExcelJS = require('exceljs');
 
-const MASTER_PATH = path.join(__dirname, '..', 'results', 'Air Price Daily Snapshot.xlsx');
+const RESULTS_DIR = path.join(__dirname, '..', 'results');
+const MASTER_PATH = path.join(RESULTS_DIR, 'Air Price Daily Snapshot.xlsx');
+// Ad-hoc runs on a subset config write here instead, and never publish. Sheet names are dates, so
+// a test run would otherwise overwrite the day's real tab in the master and push it to SharePoint.
+const TEST_MASTER_PATH = path.join(RESULTS_DIR, 'Air Price Daily Snapshot (test).xlsx');
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sept', 'Oct', 'Nov', 'Dec'];
 const BD_DOMESTIC = new Set(['DAC', 'CXB', 'CGP', 'ZYL', 'RJH', 'SPD', 'JSR', 'BZL']);
@@ -199,7 +203,7 @@ function writeSection(sheet, startRow, label, journeyDate, entries) {
  * Deliberately non-fatal. The master already holds the data, so a blocked copy delays publication
  * by a day rather than losing anything.
  */
-function publish(targetPath) {
+function publish(masterPath, targetPath) {
   const dir = path.dirname(targetPath);
   const base = path.basename(targetPath);
 
@@ -211,7 +215,7 @@ function publish(targetPath) {
 
   try {
     fs.mkdirSync(dir, { recursive: true });
-    fs.copyFileSync(MASTER_PATH, targetPath);
+    fs.copyFileSync(masterPath, targetPath);
   } catch (err) {
     return { ok: false, reason: `copy failed (${err.code || err.message}) — deferred to the next run` };
   }
@@ -238,10 +242,11 @@ function publish(targetPath) {
  * @param {string}   opts.publishPath  where to copy the master; when unset only the master is written
  * @returns {Promise<{sheet, master, sheetCount, publish}>}
  */
-async function writeDailySheet({ entries, searchDate, publishPath }) {
+async function writeDailySheet({ entries, searchDate, publishPath, isTest = false }) {
+  const masterPath = isTest ? TEST_MASTER_PATH : MASTER_PATH;
   const workbook = new ExcelJS.Workbook();
-  if (fs.existsSync(MASTER_PATH)) await workbook.xlsx.readFile(MASTER_PATH);
-  else fs.mkdirSync(path.dirname(MASTER_PATH), { recursive: true });
+  if (fs.existsSync(masterPath)) await workbook.xlsx.readFile(masterPath);
+  else fs.mkdirSync(path.dirname(masterPath), { recursive: true });
 
   // Re-running on the same day replaces that day's tab instead of stacking duplicates.
   const name = sheetNameFor(searchDate);
@@ -265,15 +270,17 @@ async function writeDailySheet({ entries, searchDate, publishPath }) {
   // Same frozen view as the original: route and flight stay visible while scrolling prices.
   sheet.views = [{ state: 'frozen', xSplit: 3, ySplit: 3 }];
 
-  await workbook.xlsx.writeFile(MASTER_PATH);
+  await workbook.xlsx.writeFile(masterPath);
 
   return {
     sheet: name,
-    master: MASTER_PATH,
+    master: masterPath,
     sheetCount: workbook.worksheets.length,
-    publish: publishPath
-      ? publish(publishPath)
-      : { ok: false, reason: 'SNAPSHOT_XLSX not set in .env — kept local only' },
+    publish: isTest
+      ? { ok: false, reason: 'test run — written to the test master, not published' }
+      : publishPath
+        ? publish(masterPath, publishPath)
+        : { ok: false, reason: 'SNAPSHOT_XLSX not set in .env — kept local only' },
   };
 }
 
