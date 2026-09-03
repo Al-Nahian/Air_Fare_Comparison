@@ -32,6 +32,7 @@ require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 
 const { runComparison } = require('../src/runner');
 const { sendSnapshotEmail } = require('./mailer');
+const { writeDailySheet } = require('./xlsx-writer');
 
 const ROOT = path.join(__dirname, '..');
 const RESULTS_DIR = path.join(ROOT, 'results');
@@ -75,8 +76,9 @@ function localDate(daysAhead = 0) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-function writeDailyCsv(entries, searchDate) {
-  const rows = entries.map(({ match, journeyDate }) => {
+/** The day's rows, shared by the CSV and the Excel sheet so the two can never drift apart. */
+function buildRows(entries) {
+  return entries.map(({ match, journeyDate }) => {
     const shohoz = match.platforms?.shohoz || {};
     const sharetrip = match.platforms?.sharetrip || {};
     const gozayaan = match.platforms?.gozayaan || {};
@@ -98,7 +100,9 @@ function writeDailyCsv(entries, searchDate) {
       gozayaan.baseFare ?? '', gozayaan.totalStandard ?? '', gozayaan.totalBkash ?? '',
     ];
   });
+}
 
+function writeDailyCsv(rows, searchDate) {
   // Quoting and BOM match the dashboard's export byte for byte, so Excel opens either file the same.
   const csv = [HEADERS, ...rows]
     .map((row) => row.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(','))
@@ -189,8 +193,20 @@ async function main() {
   if (failures.length) process.exitCode = 1;
 
   if (entries.length > 0) {
-    const filePath = writeDailyCsv(entries, searchDate);
+    const rows = buildRows(entries);
+    const filePath = writeDailyCsv(rows, searchDate);
     log(`file — ${filePath}`);
+
+    // Excel is a delivery convenience like email: the CSV is already safely on disk, so a workbook
+    // that is locked, missing or mid-sync is logged and skipped rather than failing the run.
+    try {
+      const xlsx = await writeDailySheet({
+        entries, searchDate, workbookPath: process.env.SNAPSHOT_XLSX,
+      });
+      log(xlsx.written ? `excel — ${xlsx.reason}` : `excel skipped — ${xlsx.reason}`);
+    } catch (err) {
+      log(`EXCEL FAILED — ${err.message} (the CSV is still saved in results/)`);
+    }
 
     // The file is already safely written by this point. Email is a delivery convenience, so a mail
     // failure is logged loudly but never discards a successful collection run.
