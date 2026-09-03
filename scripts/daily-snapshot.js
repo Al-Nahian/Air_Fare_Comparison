@@ -240,9 +240,21 @@ async function main() {
     // that is locked, missing or mid-sync is logged and skipped rather than failing the run.
     try {
       const xlsx = await writeDailySheet({
-        entries, searchDate, workbookPath: process.env.SNAPSHOT_XLSX,
+        entries, searchDate, publishPath: process.env.SNAPSHOT_XLSX,
       });
-      log(xlsx.written ? `excel — ${xlsx.reason}` : `excel skipped — ${xlsx.reason}`);
+      log(`excel — sheet "${xlsx.sheet}" added to the master (${xlsx.sheetCount} sheets)`);
+      log(xlsx.publish.ok
+        ? `publish — ${xlsx.publish.reason}`
+        : `publish skipped — ${xlsx.publish.reason}`);
+
+      // A conflict copy means OneDrive could not reconcile our write with a server-side edit.
+      // These sit in the folder unnoticed, so make the run fail loudly instead.
+      if (xlsx.publish.conflicts && xlsx.publish.conflicts.length) {
+        const note = `OneDrive left conflict copies: ${xlsx.publish.conflicts.join(", ")}`;
+        warnings.push(note);
+        log(`WARN ${note}`);
+        process.exitCode = 1;
+      }
     } catch (err) {
       log(`EXCEL FAILED — ${err.message} (the CSV is still saved in results/)`);
     }

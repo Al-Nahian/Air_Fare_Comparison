@@ -2,11 +2,20 @@
  * Writes the daily snapshot into a workbook, one worksheet per search date, laid out the same way
  * as the date tabs in the main "Air Price Analysis.xlsx" so a sheet can be copied straight across.
  *
- * Deliberately writes its OWN workbook rather than the main one. exceljs works by reading a workbook
- * into memory and writing a brand-new file, and it does not understand pivot tables, pivot caches or
- * drawings — the main file has 2 pivot tables, 3 caches and a drawing across 769 parts, all of which
- * would be silently dropped on the first run. A year of analysis is not worth risking for an
- * automated append.
+ * TWO FILES, ON PURPOSE:
+ *   results/Air Price Daily Snapshot.xlsx   the master. Local, never synced, and nothing but this
+ *                                           script ever touches it, so writing to it cannot fail.
+ *   <SNAPSHOT_XLSX>                         a copy pushed into the OneDrive/SharePoint folder.
+ *
+ * The copy is disposable. If it can't happen — workbook open in Excel, someone editing it in a
+ * browser, sync stuck — the run says so and moves on, and the NEXT run's copy carries the missed
+ * days too, because the master still holds every tab. Writing straight to the synced file instead
+ * would lose that day's tab permanently, since there would be no second copy to add it to.
+ *
+ * Deliberately never writes the main "Air Price Analysis.xlsx". exceljs reads a workbook into memory
+ * and writes a brand-new file, and cannot round-trip pivot tables, pivot caches or drawings — that
+ * file has 2 pivot tables, 3 caches and a drawing across 769 parts, all of which would be silently
+ * dropped on the first run.
  *
  * Layout mirrored from the original (verified against the "20th April" tab):
  *   - column A and row 1 are blank spacers
@@ -21,6 +30,8 @@
 const fs = require('fs');
 const path = require('path');
 const ExcelJS = require('exceljs');
+
+const MASTER_PATH = path.join(__dirname, '..', 'results', 'Air Price Daily Snapshot.xlsx');
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sept', 'Oct', 'Nov', 'Dec'];
 const BD_DOMESTIC = new Set(['DAC', 'CXB', 'CGP', 'ZYL', 'RJH', 'SPD', 'JSR', 'BZL']);
@@ -48,6 +59,8 @@ const GROUPS = [
 
 // Row positions of the two percentage columns, 0-based within a data row.
 const PCT_INDEXES = { sharetrip: 11, gozayaan: 16 };
+const MONEY_COLS = [4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 16];
+const PCT_COLS = [12, 17];
 
 function ordinal(n) {
   const suffix = ['th', 'st', 'nd', 'rd'];
@@ -109,9 +122,6 @@ function dataRow({ match, comparable = true }) {
   ];
 }
 
-const MONEY_COLS = [4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 16];
-const PCT_COLS = [12, 17];
-
 /** Header block, data rows and the average row for one section. Returns the next free row. */
 function writeSection(sheet, startRow, label, journeyDate, entries) {
   const groupRow = sheet.getRow(startRow);
@@ -154,7 +164,7 @@ function writeSection(sheet, startRow, label, journeyDate, entries) {
   });
 
   // Average of the two difference percentages, so each section says at a glance how much dearer
-  // ShareTrip and GoZayaan run against Shohoz across its routes.
+  // Shohoz runs against ShareTrip and GoZayaan across its routes.
   const mean = (index) => {
     const nums = rows.map((v) => v[index]).filter((v) => typeof v === 'number' && Number.isFinite(v));
     return nums.length ? nums.reduce((a, b) => a + b, 0) / nums.length : null;
@@ -184,28 +194,54 @@ function writeSection(sheet, startRow, label, journeyDate, entries) {
 }
 
 /**
- * @param {object}   opts
- * @param {Array}    opts.entries       [{ match, journeyDate }]
- * @param {string}   opts.searchDate    YYYY-MM-DD, used for the sheet name
- * @param {string}   opts.workbookPath  absolute path; when unset the write is skipped
- * @returns {Promise<{written: boolean, reason: string, sheet?: string}>}
+ * Copy the master into the synced folder, and report anything that stopped it.
+ *
+ * Deliberately non-fatal. The master already holds the data, so a blocked copy delays publication
+ * by a day rather than losing anything.
  */
-async function writeDailySheet({ entries, searchDate, workbookPath }) {
-  if (!workbookPath) {
-    return { written: false, reason: 'SNAPSHOT_XLSX not set in .env — Excel write skipped' };
+function publish(targetPath) {
+  const dir = path.dirname(targetPath);
+  const base = path.basename(targetPath);
+
+  // Desktop Excel leaves a ~$ lock file beside the workbook. A browser (Excel Online) session
+  // leaves NO local trace, which is why the conflict scan below matters as well.
+  if (fs.existsSync(path.join(dir, '~$' + base))) {
+    return { ok: false, reason: 'target workbook is open in Excel — copy deferred to the next run' };
   }
 
-  // Excel holds an exclusive lock and leaves a ~$ file beside the workbook. Writing underneath that
-  // produces OneDrive conflict copies, so skip the run rather than corrupt anything.
-  const lockFile = path.join(path.dirname(workbookPath), '~$' + path.basename(workbookPath));
-  if (fs.existsSync(lockFile)) {
-    return { written: false, reason: 'workbook is open in Excel — Excel write skipped' };
+  try {
+    fs.mkdirSync(dir, { recursive: true });
+    fs.copyFileSync(MASTER_PATH, targetPath);
+  } catch (err) {
+    return { ok: false, reason: `copy failed (${err.code || err.message}) — deferred to the next run` };
   }
 
+  // OneDrive resolves an unmergeable clash by keeping both files, renaming one after the machine.
+  // Nobody notices those, so surface them.
+  const stem = base.replace(/\.xlsx$/i, '');
+  let conflicts = [];
+  try {
+    conflicts = fs.readdirSync(dir).filter(
+      (f) => f !== base && f.startsWith(stem) && /\.xlsx$/i.test(f)
+    );
+  } catch (err) {
+    // Listing the folder is a nicety; never let it fail the run.
+  }
+
+  return { ok: true, conflicts, reason: `copied to ${base}` };
+}
+
+/**
+ * @param {object}   opts
+ * @param {Array}    opts.entries      [{ match, journeyDate, comparable }]
+ * @param {string}   opts.searchDate   YYYY-MM-DD, used for the sheet name
+ * @param {string}   opts.publishPath  where to copy the master; when unset only the master is written
+ * @returns {Promise<{sheet, master, sheetCount, publish}>}
+ */
+async function writeDailySheet({ entries, searchDate, publishPath }) {
   const workbook = new ExcelJS.Workbook();
-  const exists = fs.existsSync(workbookPath);
-  if (exists) await workbook.xlsx.readFile(workbookPath);
-  else fs.mkdirSync(path.dirname(workbookPath), { recursive: true });
+  if (fs.existsSync(MASTER_PATH)) await workbook.xlsx.readFile(MASTER_PATH);
+  else fs.mkdirSync(path.dirname(MASTER_PATH), { recursive: true });
 
   // Re-running on the same day replaces that day's tab instead of stacking duplicates.
   const name = sheetNameFor(searchDate);
@@ -229,12 +265,16 @@ async function writeDailySheet({ entries, searchDate, workbookPath }) {
   // Same frozen view as the original: route and flight stay visible while scrolling prices.
   sheet.views = [{ state: 'frozen', xSplit: 3, ySplit: 3 }];
 
-  await workbook.xlsx.writeFile(workbookPath);
+  await workbook.xlsx.writeFile(MASTER_PATH);
+
   return {
-    written: true,
     sheet: name,
-    reason: `${exists ? 'added' : 'created workbook and added'} sheet "${name}" (${domestic.length} domestic, ${international.length} international)`,
+    master: MASTER_PATH,
+    sheetCount: workbook.worksheets.length,
+    publish: publishPath
+      ? publish(publishPath)
+      : { ok: false, reason: 'SNAPSHOT_XLSX not set in .env — kept local only' },
   };
 }
 
-module.exports = { writeDailySheet, sheetNameFor };
+module.exports = { writeDailySheet, sheetNameFor, MASTER_PATH };
