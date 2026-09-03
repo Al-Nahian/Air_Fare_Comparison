@@ -75,7 +75,7 @@ function formatFlight(flightNo) {
 }
 
 /** One data row, in the original's column order. */
-function dataRow({ match }) {
+function dataRow({ match, comparable = true }) {
   const sh = match.platforms?.shohoz || {};
   const st = match.platforms?.sharetrip || {};
   const gz = match.platforms?.gozayaan || {};
@@ -97,7 +97,9 @@ function dataRow({ match }) {
   ] || '';
 
   return [
-    '', `${from} - ${to}`, formatFlight(match.flightNo),
+    // A trailing asterisk marks a row whose platforms quoted different base fares, i.e. different
+    // fare classes for the same flight number, so its difference is not like-for-like.
+    '', `${from} - ${to}${comparable ? '' : ' *'}`, formatFlight(match.flightNo),
     sh.baseFare ?? '', sh.totalStandard ?? '', sh.totalBkash ?? '', sh.platformPrice ?? '',
     st.baseFare ?? '', st.totalStandard ?? '', st.totalBkash ?? '',
     stDiff, pct(stDiff),
@@ -137,14 +139,19 @@ function writeSection(sheet, startRow, label, journeyDate, entries) {
 
   const rows = entries.map(dataRow);
   let r = startRow + 2;
-  for (const values of rows) {
+  entries.forEach((entry, idx) => {
     const row = sheet.getRow(r);
-    values.forEach((v, i) => { row.getCell(i + 1).value = v === '' ? null : v; });
+    rows[idx].forEach((v, i) => { row.getCell(i + 1).value = v === '' ? null : v; });
     for (const c of MONEY_COLS) row.getCell(c).numFmt = '#,##0';
     for (const c of PCT_COLS) row.getCell(c).numFmt = '0.00%';
     row.getCell(18).alignment = { horizontal: 'center' };
+    if (entry.comparable === false) {
+      for (let c = 2; c <= 18; c++) {
+        row.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFDF0E0' } };
+      }
+    }
     r++;
-  }
+  });
 
   // Average of the two difference percentages, so each section says at a glance how much dearer
   // ShareTrip and GoZayaan run against Shohoz across its routes.
@@ -163,6 +170,14 @@ function writeSection(sheet, startRow, label, journeyDate, entries) {
   }
   for (let c = 2; c <= 18; c++) {
     avgRow.getCell(c).border = { top: { style: 'thin', color: { argb: 'FFBFC7D2' } } };
+  }
+
+  // Explain the asterisk in the sheet itself, so the caveat travels with the tab when it is copied.
+  if (entries.some((e) => e.comparable === false)) {
+    const note = sheet.getRow(r + 1);
+    note.getCell(2).value = '* base fares differ across platforms — different fare class, not a like-for-like comparison';
+    note.getCell(2).font = { italic: true, size: 9, color: { argb: 'FF8A5D00' } };
+    return r + 3;
   }
 
   return r + 1;

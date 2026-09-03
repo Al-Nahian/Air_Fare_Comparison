@@ -119,14 +119,41 @@ function writeDailyCsv(rows, searchDate) {
 }
 
 /**
+ * How far the three platforms' base fares may differ and still count as the same ticket.
+ * Rounding accounts for a taka or two (Shohoz 25,996 vs GoZayaan 25,997 on one DXB fare); anything
+ * beyond a couple of percent is a different booking class.
+ */
+const BASE_FARE_TOLERANCE = 0.02;
+
+/** Relative spread between the three platforms' base fares, or Infinity if any is missing. */
+function baseFareSpread(comparison) {
+  const fares = PLATFORMS.map((p) => comparison.platforms[p].baseFare);
+  if (fares.some((v) => v == null)) return Infinity;
+  const min = Math.min(...fares);
+  const max = Math.max(...fares);
+  return min ? (max - min) / min : Infinity;
+}
+
+/**
  * Find the itinerary priced by all three platforms, and summarise it for logging and the email.
  * Returns null when no such itinerary exists — a reportable problem, not a blank day.
+ *
+ * A shared flight number does NOT mean a shared fare class. On DAC-DXB the top-sorted BS 343 had
+ * ShareTrip quoting 81,084 base against Shohoz's 25,996 for the "same" flight — a 212% spread that
+ * turned a genuine ~3% price gap into −140%. Base-fare agreement is the usable proxy for "same
+ * ticket", so prefer the first itinerary where all three agree, and fall back to the closest
+ * available only when nothing qualifies, flagged so the row is visibly not like-for-like.
  */
 function buildEntry(result, route, leadDays, journeyDate) {
-  const match = (result.comparisons || []).find(
+  const candidates = (result.comparisons || []).filter(
     (c) => PLATFORMS.every((p) => c.platforms && c.platforms[p])
   );
-  if (!match) return null;
+  if (candidates.length === 0) return null;
+
+  const comparable = candidates.find((c) => baseFareSpread(c) <= BASE_FARE_TOLERANCE);
+  const match = comparable
+    || candidates.reduce((best, c) => (baseFareSpread(c) < baseFareSpread(best) ? c : best));
+  const spread = baseFareSpread(match);
 
   const summary = {
     route: `${route.from}-${route.to}`,
@@ -138,7 +165,7 @@ function buildEntry(result, route, leadDays, journeyDate) {
   };
   for (const p of PLATFORMS) summary[`${p}_discounted`] = match.platforms[p].totalBkash;
 
-  return { match, journeyDate, summary };
+  return { match, journeyDate, summary, comparable: Boolean(comparable), spread };
 }
 
 async function main() {
@@ -181,6 +208,14 @@ async function main() {
         failures.push(`${label} — no itinerary carried by all 3 platforms`);
         log(`FAIL ${label} — no itinerary on all 3 platforms (ST ${counts.sharetripCount}, GZ ${counts.gozayaanCount}, SH ${counts.shohozCount})`);
         continue;
+      }
+
+      if (!entry.comparable) {
+        // Kept, but said out loud: no itinerary on this route had matching base fares, so the row
+        // compares different fare classes and its percentage is not like-for-like.
+        const note = `${label} — no like-for-like fare (base fares differ by ${(entry.spread * 100).toFixed(0)}%)`;
+        warnings.push(note);
+        log(`WARN ${note}`);
       }
 
       entries.push(entry);
