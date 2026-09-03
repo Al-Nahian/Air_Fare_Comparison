@@ -10,10 +10,10 @@
  *
  * Layout mirrored from the original (verified against the "20th April" tab):
  *   - column A and row 1 are blank spacers
- *   - row 2 carries the section name, the date, and merged platform group headers
+ *   - row 2 carries the section name, the JOURNEY date being priced, and merged group headers
  *   - row 3 carries the sub-headers; data starts at row 4; panes frozen at D4
  *   - routes read "DAC - CXB", flights read "VQ - 921"
- *   - Difference/Percentage are measured against Shohoz Platform, once per rival platform
+ *   - each section ends with an Average row over the two difference percentages
  * The FlightExpert and FirstTrip column groups from the original are omitted, since this app does
  * not scrape those two.
  */
@@ -46,6 +46,9 @@ const GROUPS = [
   { from: 16, to: 17, label: 'Difference with Shohoz' },
 ];
 
+// Row positions of the two percentage columns, 0-based within a data row.
+const PCT_INDEXES = { sharetrip: 11, gozayaan: 16 };
+
 function ordinal(n) {
   const suffix = ['th', 'st', 'nd', 'rd'];
   const v = n % 100;
@@ -76,11 +79,13 @@ function dataRow({ match }) {
   const sh = match.platforms?.shohoz || {};
   const st = match.platforms?.sharetrip || {};
   const gz = match.platforms?.gozayaan || {};
-  const base = sh.platformPrice;
 
+  // Difference is measured against Shohoz's DISCOUNTED price: how much more (positive) or less
+  // (negative) a rival charges for the same flight, and that gap as a share of Shohoz's price.
+  const shohozDiscount = sh.totalBkash;
   const diff = (rivalDiscount) =>
-    base != null && rivalDiscount != null ? base - rivalDiscount : '';
-  const pct = (d) => (d !== '' && base ? d / base : '');
+    shohozDiscount != null && rivalDiscount != null ? rivalDiscount - shohozDiscount : '';
+  const pct = (d) => (d !== '' && shohozDiscount ? d / shohozDiscount : '');
 
   const stDiff = diff(st.totalBkash);
   const gzDiff = diff(gz.totalBkash);
@@ -92,7 +97,7 @@ function dataRow({ match }) {
 
   return [
     '', `${from} - ${to}`, formatFlight(match.flightNo),
-    sh.baseFare ?? '', sh.totalStandard ?? '', sh.totalBkash ?? '', base ?? '',
+    sh.baseFare ?? '', sh.totalStandard ?? '', sh.totalBkash ?? '', sh.platformPrice ?? '',
     st.baseFare ?? '', st.totalStandard ?? '', st.totalBkash ?? '',
     stDiff, pct(stDiff),
     gz.baseFare ?? '', gz.totalStandard ?? '', gz.totalBkash ?? '',
@@ -101,11 +106,15 @@ function dataRow({ match }) {
   ];
 }
 
-/** Header block for one section, returning the next free row. */
-function writeSection(sheet, startRow, label, searchDate, entries) {
+const MONEY_COLS = [4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 16];
+const PCT_COLS = [12, 17];
+
+/** Header block, data rows and the average row for one section. Returns the next free row. */
+function writeSection(sheet, startRow, label, journeyDate, entries) {
   const groupRow = sheet.getRow(startRow);
   groupRow.getCell(2).value = label;
-  groupRow.getCell(3).value = searchDate;
+  // The journey date being priced, not the date the search ran — that is in the sheet name.
+  groupRow.getCell(3).value = journeyDate;
   for (const g of GROUPS) {
     groupRow.getCell(g.from).value = g.label;
     sheet.mergeCells(startRow, g.from, startRow, g.to);
@@ -125,22 +134,43 @@ function writeSection(sheet, startRow, label, searchDate, entries) {
     }
   }
 
+  const rows = entries.map(dataRow);
   let r = startRow + 2;
-  for (const entry of entries) {
+  for (const values of rows) {
     const row = sheet.getRow(r);
-    dataRow(entry).forEach((v, i) => { row.getCell(i + 1).value = v === '' ? null : v; });
-    for (const c of [4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 16]) row.getCell(c).numFmt = '#,##0';
-    for (const c of [12, 17]) row.getCell(c).numFmt = '0.00%';
+    values.forEach((v, i) => { row.getCell(i + 1).value = v === '' ? null : v; });
+    for (const c of MONEY_COLS) row.getCell(c).numFmt = '#,##0';
+    for (const c of PCT_COLS) row.getCell(c).numFmt = '0.00%';
     row.getCell(18).alignment = { horizontal: 'center' };
     r++;
   }
-  return r;
+
+  // Average of the two difference percentages, so each section says at a glance how much dearer
+  // ShareTrip and GoZayaan run against Shohoz across its routes.
+  const mean = (index) => {
+    const nums = rows.map((v) => v[index]).filter((v) => typeof v === 'number' && Number.isFinite(v));
+    return nums.length ? nums.reduce((a, b) => a + b, 0) / nums.length : null;
+  };
+  const avgRow = sheet.getRow(r);
+  avgRow.getCell(2).value = 'Average';
+  avgRow.getCell(12).value = mean(PCT_INDEXES.sharetrip);
+  avgRow.getCell(17).value = mean(PCT_INDEXES.gozayaan);
+  avgRow.font = { bold: true };
+  for (const c of PCT_COLS) {
+    avgRow.getCell(c).numFmt = '0.00%';
+    avgRow.getCell(c).alignment = { horizontal: 'right' };
+  }
+  for (let c = 2; c <= 18; c++) {
+    avgRow.getCell(c).border = { top: { style: 'thin', color: { argb: 'FFBFC7D2' } } };
+  }
+
+  return r + 1;
 }
 
 /**
  * @param {object}   opts
  * @param {Array}    opts.entries       [{ match, journeyDate }]
- * @param {string}   opts.searchDate    YYYY-MM-DD
+ * @param {string}   opts.searchDate    YYYY-MM-DD, used for the sheet name
  * @param {string}   opts.workbookPath  absolute path; when unset the write is skipped
  * @returns {Promise<{written: boolean, reason: string, sheet?: string}>}
  */
@@ -153,7 +183,7 @@ async function writeDailySheet({ entries, searchDate, workbookPath }) {
   // produces OneDrive conflict copies, so skip the run rather than corrupt anything.
   const lockFile = path.join(path.dirname(workbookPath), '~$' + path.basename(workbookPath));
   if (fs.existsSync(lockFile)) {
-    return { written: false, reason: `workbook is open in Excel — Excel write skipped` };
+    return { written: false, reason: 'workbook is open in Excel — Excel write skipped' };
   }
 
   const workbook = new ExcelJS.Workbook();
@@ -169,12 +199,16 @@ async function writeDailySheet({ entries, searchDate, workbookPath }) {
   const sheet = workbook.addWorksheet(name);
   WIDTHS.forEach((w, i) => { sheet.getColumn(i + 1).width = w; });
 
-  const domestic = entries.filter((e) => endpointsOf(e.match.route).every((a) => BD_DOMESTIC.has(a)));
-  const international = entries.filter((e) => !endpointsOf(e.match.route).every((a) => BD_DOMESTIC.has(a)));
+  const isDomestic = (e) => endpointsOf(e.match.route).every((a) => BD_DOMESTIC.has(a));
+  const domestic = entries.filter(isDomestic);
+  const international = entries.filter((e) => !isDomestic(e));
+
+  // Every route in a section shares a lead time, so the section's journey date is uniform.
+  const journeyOf = (list) => (list.length ? list[0].journeyDate : '');
 
   let row = 2;
-  if (domestic.length) row = writeSection(sheet, row, 'Domestic', searchDate, domestic) + 3;
-  if (international.length) writeSection(sheet, row, 'International', searchDate, international);
+  if (domestic.length) row = writeSection(sheet, row, 'Domestic', journeyOf(domestic), domestic) + 2;
+  if (international.length) writeSection(sheet, row, 'International', journeyOf(international), international);
 
   // Same frozen view as the original: route and flight stay visible while scrolling prices.
   sheet.views = [{ state: 'frozen', xSplit: 3, ySplit: 3 }];
