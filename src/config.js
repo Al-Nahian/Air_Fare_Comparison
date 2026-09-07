@@ -68,6 +68,7 @@ const PLATFORM_COLORS = {
   sharetrip: '#0ea5e9',
   gozayaan: '#2563eb',
   shohoz: '#16a34a',
+  firsttrip: '#f97316',
 };
 
 module.exports = {

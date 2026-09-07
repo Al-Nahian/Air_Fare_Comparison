@@ -17,11 +17,11 @@ function getFlightKey(flight) {
 
 /**
  * Compare results from all 3 platforms.
- * @param {{ sharetrip: Array, gozayaan: Array, shohoz: Array }} results
+ * @param {{ sharetrip: Array, gozayaan: Array, shohoz: Array, firsttrip: Array }} results
  * @returns {Array} Comparison rows grouped by flight
  */
 function compareResults(results) {
-  const platforms = ['sharetrip', 'gozayaan', 'shohoz'];
+  const platforms = ['sharetrip', 'gozayaan', 'shohoz', 'firsttrip'];
   const flightMap = new Map(); // flightKey -> { sharetrip: data, gozayaan: data, shohoz: data }
 
   for (const platform of platforms) {

@@ -21,6 +21,7 @@ const PLATFORMS = [
   ['sharetrip', 'ShareTrip'],
   ['gozayaan', 'GoZayaan'],
   ['shohoz', 'Shohoz'],
+  ['firsttrip', 'FirstTrip'],
 ];
 
 function isConfigured() {
@@ -98,7 +99,7 @@ async function sendSnapshotEmail({ rows, failures, warnings, searchDate, duratio
     problems.push(
       `<div style="margin:14px 0;padding:11px 14px;border-left:3px solid #a0231d;background:#faeae8">
          <strong style="color:#a0231d">Not captured (${failed})</strong><br>
-         <span style="color:#5a6270;font-size:12px">No single itinerary was priced by all three platforms.</span>
+         <span style="color:#5a6270;font-size:12px">No single itinerary was priced by all four platforms.</span>
          <div style="margin-top:6px">${failures.join('<br>')}</div>
        </div>`
     );
@@ -114,7 +115,7 @@ async function sendSnapshotEmail({ rows, failures, warnings, searchDate, duratio
 
   const html = `<div style="font-family:system-ui,-apple-system,sans-serif;font-size:14px;color:#1a1d23;line-height:1.5">
   <p style="margin:0 0 4px"><strong>Air price snapshot — ${searchDate}</strong></p>
-  <p style="margin:0;color:#5a6270">${rows.length} route${rows.length === 1 ? '' : 's'} captured in ${durationMin} min. Prices shown are the discounted total for the cheapest flight all three platforms sell.</p>
+  <p style="margin:0;color:#5a6270">${rows.length} route${rows.length === 1 ? '' : 's'} captured in ${durationMin} min. Prices shown are the discounted total for the cheapest flight all four platforms sell.</p>
   ${problems.join('\n')}
   <div style="margin-top:18px">${summaryTable(rows)}</div>
   <p style="margin-top:18px;color:#5a6270;font-size:12px">

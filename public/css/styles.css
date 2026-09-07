@@ -37,6 +37,10 @@
   --shohoz-bg: rgba(22, 163, 74, 0.1);
   --shohoz-border: rgba(22, 163, 74, 0.25);
 
+  --firsttrip: #f97316;
+  --firsttrip-bg: rgba(249, 115, 22, 0.1);
+  --firsttrip-border: rgba(249, 115, 22, 0.25);
+
   /* Status */
   --success: #22c55e;
   --error: #ef4444;
@@ -1252,6 +1256,12 @@ body.has-results .bg-plane {
   color: var(--shohoz);
   background: var(--shohoz-bg);
   border: 1px solid var(--shohoz-border);
+}
+
+.platform-price__name--firsttrip {
+  color: var(--firsttrip);
+  background: var(--firsttrip-bg);
+  border: 1px solid var(--firsttrip-border);
 }
 
 .platform-price__winner-badge {

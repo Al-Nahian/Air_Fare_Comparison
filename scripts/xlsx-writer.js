@@ -23,8 +23,7 @@
  *   - row 3 carries the sub-headers; data starts at row 4; panes frozen at D4
  *   - routes read "DAC - CXB", flights read "VQ - 921"
  *   - each section ends with an Average row over the two difference percentages
- * The FlightExpert and FirstTrip column groups from the original are omitted, since this app does
- * not scrape those two.
+ * The FlightExpert column group from the original is omitted, since this app does not scrape it.
  */
 
 const fs = require('fs');
@@ -41,11 +40,20 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sept', 
 const BD_DOMESTIC = new Set(['DAC', 'CXB', 'CGP', 'ZYL', 'RJH', 'SPD', 'JSR', 'BZL']);
 
 // Widths lifted from the original sheet so columns line up when a tab is pasted beside an old one.
-const WIDTHS = [2.86, 14.86, 24.29, 9.71, 11.71, 11.14, 10.86, 10.43, 12, 11.71, 12.29, 13.14, 10.57, 13.57, 10.86, 12.14, 13, 10];
+const WIDTHS = [
+  2.86, 14.86, 24.29,               // spacer, Route, Flight
+  9.71, 11.71, 11.14, 10.86,        // Shohoz
+  10.43, 12, 11.71, 12.29, 13.14,   // ShareTrip + difference
+  10.57, 13.57, 10.86, 12.14, 13,   // GoZayaan + difference
+  10.57, 13.57, 10.86, 12.14, 13,   // FirstTrip + difference
+  10,                               // Cheapest
+];
 
 const SUB_HEADERS = [
   '', 'Route', 'Flight',
   'Base ', 'Gross', 'Discount', 'Platform',
+  'Base', 'Gross', 'Discount',
+  'Difference', 'Percentage',
   'Base', 'Gross', 'Discount',
   'Difference', 'Percentage',
   'Base', 'Gross', 'Discount',
@@ -59,12 +67,17 @@ const GROUPS = [
   { from: 11, to: 12, label: 'Difference with Shohoz' },
   { from: 13, to: 15, label: 'GoZayaan' },
   { from: 16, to: 17, label: 'Difference with Shohoz' },
+  { from: 18, to: 20, label: 'FirstTrip' },
+  { from: 21, to: 22, label: 'Difference with Shohoz' },
 ];
 
-// Row positions of the two percentage columns, 0-based within a data row.
-const PCT_INDEXES = { sharetrip: 11, gozayaan: 16 };
-const MONEY_COLS = [4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 16];
-const PCT_COLS = [12, 17];
+const CHEAPEST_COL = 23;
+const LAST_COL = 23;
+
+// Row positions of the percentage cells, 0-based within a data row.
+const PCT_INDEXES = { sharetrip: 11, gozayaan: 16, firsttrip: 21 };
+const MONEY_COLS = [4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 16, 18, 19, 20, 21];
+const PCT_COLS = [12, 17, 22];
 
 function ordinal(n) {
   const suffix = ['th', 'st', 'nd', 'rd'];
@@ -72,10 +85,16 @@ function ordinal(n) {
   return n + (suffix[(v - 20) % 10] || suffix[v] || suffix[0]);
 }
 
-/** '2026-09-03' -> '3rd Sept', matching the main workbook's tab naming. */
+/**
+ * '2026-09-03' -> '3rd Sept 2026'.
+ *
+ * Follows the main workbook's '3rd Sept' convention but ADDS THE YEAR. That workbook already
+ * holds a year of tabs named without one, so a yearless name collides on every single date, and
+ * copying a new tab across would silently replace the previous year's analysis.
+ */
 function sheetNameFor(searchDate) {
-  const [, month, day] = searchDate.split('-').map(Number);
-  return `${ordinal(day)} ${MONTHS[month - 1]}`;
+  const [year, month, day] = searchDate.split('-').map(Number);
+  return `${ordinal(day)} ${MONTHS[month - 1]} ${year}`;
 }
 
 // "DAC → CXB" -> ["DAC", "CXB"];  round trips use ⇄
@@ -96,6 +115,7 @@ function dataRow({ match, comparable = true }) {
   const sh = match.platforms?.shohoz || {};
   const st = match.platforms?.sharetrip || {};
   const gz = match.platforms?.gozayaan || {};
+  const ft = match.platforms?.firsttrip || {};
 
   // Both sides are FINAL prices — the discounted totals the dashboard shows with each platform's
   // coupon applied (OCDOM/GPINT on Shohoz, BKASHDOM/FLYGPSTAR on ShareTrip, the best Hot Deal on
@@ -107,11 +127,12 @@ function dataRow({ match, comparable = true }) {
 
   const stDiff = diff(st.totalBkash);
   const gzDiff = diff(gz.totalBkash);
+  const ftDiff = diff(ft.totalBkash);
   const [from, to] = endpointsOf(match.route);
 
-  const cheapest = { sharetrip: 'ShareTrip', gozayaan: 'GoZayaan', shohoz: 'Shohoz' }[
-    match.cheapestBkash?.platform
-  ] || '';
+  const cheapest = {
+    sharetrip: 'ShareTrip', gozayaan: 'GoZayaan', shohoz: 'Shohoz', firsttrip: 'FirstTrip',
+  }[match.cheapestBkash?.platform] || '';
 
   return [
     // A trailing asterisk marks a row whose platforms quoted different base fares, i.e. different
@@ -122,6 +143,8 @@ function dataRow({ match, comparable = true }) {
     stDiff, pct(stDiff),
     gz.baseFare ?? '', gz.totalStandard ?? '', gz.totalBkash ?? '',
     gzDiff, pct(gzDiff),
+    ft.baseFare ?? '', ft.totalStandard ?? '', ft.totalBkash ?? '',
+    ftDiff, pct(ftDiff),
     cheapest,
   ];
 }
@@ -136,16 +159,17 @@ function writeSection(sheet, startRow, label, journeyDate, entries) {
     groupRow.getCell(g.from).value = g.label;
     sheet.mergeCells(startRow, g.from, startRow, g.to);
   }
-  groupRow.getCell(18).value = 'Cheapest';
-  sheet.mergeCells(startRow, 18, startRow + 1, 18);
+  groupRow.getCell(CHEAPEST_COL).value = 'Cheapest';
+  sheet.mergeCells(startRow, CHEAPEST_COL, startRow + 1, CHEAPEST_COL);
 
   const subRow = sheet.getRow(startRow + 1);
-  SUB_HEADERS.forEach((h, i) => { if (i >= 1 && i !== 17) subRow.getCell(i + 1).value = h; });
+  // The Cheapest header is merged down from the row above, so skip writing it again here.
+  SUB_HEADERS.forEach((h, i) => { if (i >= 1 && i + 1 !== CHEAPEST_COL) subRow.getCell(i + 1).value = h; });
 
   for (const row of [groupRow, subRow]) {
     row.font = { bold: true };
     row.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
-    for (let c = 2; c <= 18; c++) {
+    for (let c = 2; c <= LAST_COL; c++) {
       row.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEEF1F5' } };
       row.getCell(c).border = { bottom: { style: 'thin', color: { argb: 'FFBFC7D2' } } };
     }
@@ -158,9 +182,9 @@ function writeSection(sheet, startRow, label, journeyDate, entries) {
     rows[idx].forEach((v, i) => { row.getCell(i + 1).value = v === '' ? null : v; });
     for (const c of MONEY_COLS) row.getCell(c).numFmt = '#,##0';
     for (const c of PCT_COLS) row.getCell(c).numFmt = '0.00%';
-    row.getCell(18).alignment = { horizontal: 'center' };
+    row.getCell(CHEAPEST_COL).alignment = { horizontal: 'center' };
     if (entry.comparable === false) {
-      for (let c = 2; c <= 18; c++) {
+      for (let c = 2; c <= LAST_COL; c++) {
         row.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFDF0E0' } };
       }
     }
@@ -177,12 +201,13 @@ function writeSection(sheet, startRow, label, journeyDate, entries) {
   avgRow.getCell(2).value = 'Average';
   avgRow.getCell(12).value = mean(PCT_INDEXES.sharetrip);
   avgRow.getCell(17).value = mean(PCT_INDEXES.gozayaan);
+  avgRow.getCell(22).value = mean(PCT_INDEXES.firsttrip);
   avgRow.font = { bold: true };
   for (const c of PCT_COLS) {
     avgRow.getCell(c).numFmt = '0.00%';
     avgRow.getCell(c).alignment = { horizontal: 'right' };
   }
-  for (let c = 2; c <= 18; c++) {
+  for (let c = 2; c <= LAST_COL; c++) {
     avgRow.getCell(c).border = { top: { style: 'thin', color: { argb: 'FFBFC7D2' } } };
   }
 

@@ -339,7 +339,7 @@
   // slowest one), so a platform finishing instantly (e.g. Shohoz) can't drag the feed forward
   // while others are still logging in.
   const PHASE_WEIGHT = { waiting: 0, starting: 0.05, logging_in: 0.2, searching: 0.45, extracting: 0.8, done: 1, error: 1 };
-  const platformProgress = { sharetrip: 0, gozayaan: 0, shohoz: 0 };
+  const platformProgress = { sharetrip: 0, gozayaan: 0, shohoz: 0, firsttrip: 0 };
   let searchStepsTimer = null;
   let searchStepsActive = false;
 
@@ -545,7 +545,7 @@
     resultsTitle.textContent = isRoundTrip ? `${fromLabel} ⇄ ${toLabel}` : `${fromLabel} → ${toLabel}`;
     const dateLabel = isRoundTrip ? `${dateFormatted} – ${formatDate(returnDate)}` : dateFormatted;
     const tripLabel = isRoundTrip ? 'round trip' : 'flight';
-    resultsSubtitle.textContent = `${dateLabel} · ${comparisons.length} ${tripLabel}${comparisons.length !== 1 ? 's' : ''} compared · ShareTrip (${meta.sharetripCount}) · GoZayaan (${meta.gozayaanCount}) · Shohoz (${meta.shohozCount})`;
+    resultsSubtitle.textContent = `${dateLabel} · ${comparisons.length} ${tripLabel}${comparisons.length !== 1 ? 's' : ''} compared · ShareTrip (${meta.sharetripCount}) · GoZayaan (${meta.gozayaanCount}) · Shohoz (${meta.shohozCount}) · FirstTrip (${meta.firsttripCount ?? 0})`;
 
     activeAirlineFilters = new Set();
     renderAirlineFilters(comparisons);
@@ -637,8 +637,8 @@
     }
 
     const icon = renderAirlineIcon(flight);
-    const platforms = ['sharetrip', 'gozayaan', 'shohoz'];
-    const platformLabels = { sharetrip: 'ShareTrip', gozayaan: 'GoZayaan', shohoz: 'Shohoz' };
+    const platforms = ['sharetrip', 'gozayaan', 'shohoz', 'firsttrip'];
+    const platformLabels = { sharetrip: 'ShareTrip', gozayaan: 'GoZayaan', shohoz: 'Shohoz', firsttrip: 'FirstTrip' };
 
     // Route string is "DAC → CXB" (one-way) or "DAC ⇄ CXB" (round trip); either separator splits
     // into the two airport codes.
@@ -724,6 +724,7 @@
     sharetrip: '/images/platforms/sharetrip.svg',
     gozayaan: '/images/platforms/gozayaan.png',
     shohoz: '/images/platforms/shohoz.png',
+    firsttrip: '/images/platforms/firsttrip.svg',
   };
 
   function platformBadge(platformKey, platformLabel) {
@@ -810,6 +811,7 @@
         'ShareTrip Base', 'ShareTrip Tax', 'ShareTrip Fee', 'ShareTrip Total', 'ShareTrip bKash',
         'GoZayaan Base', 'GoZayaan Tax', 'GoZayaan Fee', 'GoZayaan Total', 'GoZayaan bKash',
         'Shohoz Base', 'Shohoz Tax', 'Shohoz Fee', 'Shohoz Total', 'Shohoz bKash',
+        'FirstTrip Base', 'FirstTrip Tax', 'FirstTrip Fee', 'FirstTrip Total', 'FirstTrip Discounted',
         'Cheapest Standard', 'Cheapest bKash',
       ];
 
@@ -823,6 +825,7 @@
           getValue('sharetrip', 'baseFare'), getValue('sharetrip', 'taxes'), getValue('sharetrip', 'convenienceFee'), getValue('sharetrip', 'totalStandard'), getValue('sharetrip', 'totalBkash'),
           getValue('gozayaan', 'baseFare'), getValue('gozayaan', 'taxes'), getValue('gozayaan', 'convenienceFee'), getValue('gozayaan', 'totalStandard'), getValue('gozayaan', 'totalBkash'),
           getValue('shohoz', 'baseFare'), getValue('shohoz', 'taxes'), getValue('shohoz', 'convenienceFee'), getValue('shohoz', 'totalStandard'), getValue('shohoz', 'totalBkash'),
+          getValue('firsttrip', 'baseFare'), getValue('firsttrip', 'taxes'), getValue('firsttrip', 'convenienceFee'), getValue('firsttrip', 'totalStandard'), getValue('firsttrip', 'totalBkash'),
           c.cheapestStandard ? `${c.cheapestStandard.platform} (${c.cheapestStandard.price})` : '',
           c.cheapestBkash ? `${c.cheapestBkash.platform} (${c.cheapestBkash.price})` : '',
         ];
@@ -929,12 +932,14 @@
       'ShareTrip Base', 'ShareTrip Gross', 'ShareTrip Discount',
       'Difference', 'Percentage',
       'GoZayaan Base', 'GoZayaan Gross', 'GoZayaan Discount',
+      'FirstTrip Base', 'FirstTrip Gross', 'FirstTrip Discount',
     ];
 
     const rows = list.map(item => {
       const shohoz = item.platforms?.shohoz || {};
       const sharetrip = item.platforms?.sharetrip || {};
       const gozayaan = item.platforms?.gozayaan || {};
+      const firsttrip = item.platforms?.firsttrip || {};
 
       const shohozPlatform = shohoz.platformPrice ?? '';
       const sharetripDiscount = sharetrip.totalBkash ?? '';
@@ -951,6 +956,7 @@
         sharetrip.baseFare ?? '', sharetrip.totalStandard ?? '', sharetripDiscount,
         difference, percentage,
         gozayaan.baseFare ?? '', gozayaan.totalStandard ?? '', gozayaan.totalBkash ?? '',
+        firsttrip.baseFare ?? '', firsttrip.totalStandard ?? '', firsttrip.totalBkash ?? '',
       ];
     });
 

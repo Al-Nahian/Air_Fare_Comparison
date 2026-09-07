@@ -1,11 +1,17 @@
 /**
  * Scraper Runner
- * Orchestrates all 3 scrapers in parallel and emits progress events.
+ * Orchestrates the scrapers and emits progress events.
+ *
+ * ShareTrip, GoZayaan and Shohoz run together; FirstTrip runs after them. Each browser-based
+ * scraper drives its own headless Chromium, and running all four at once measurably starves them —
+ * GoZayaan returned zero flights twice under that load while succeeding on its own. Keeping peak
+ * concurrency at two browsers costs about 12s per search and keeps the other three untouched.
  */
 
 const sharetripScraper = require('./scrapers/sharetrip');
 const gozayaanScraper = require('./scrapers/gozayaan');
 const shohozScraper = require('./scrapers/shohoz');
+const firsttripScraper = require('./scrapers/firsttrip');
 const { compareResults } = require('./compare');
 
 /**
@@ -20,16 +26,22 @@ async function runComparison(params, onProgress = () => {}) {
   const { from, to, date, returnDate } = params;
   const isRoundTrip = !!returnDate;
 
-  const scrapers = [
+  const firstWave = [
     { name: 'sharetrip', label: 'ShareTrip', fn: sharetripScraper },
     { name: 'gozayaan', label: 'GoZayaan', fn: gozayaanScraper },
     { name: 'shohoz', label: 'Shohoz', fn: shohozScraper },
   ];
 
-  // Run all 3 in parallel
+  // FirstTrip's search API is one-way only — it takes no returnDate. Handing it a round trip would
+  // return ONE-WAY fares presented as though they were the round trip, which is wrong data rather
+  // than a missing feature, so it sits out those searches entirely.
+  const secondWave = isRoundTrip
+    ? []
+    : [{ name: 'firsttrip', label: 'FirstTrip', fn: firsttripScraper }];
+
   const results = {};
 
-  const tasks = scrapers.map(async (scraper) => {
+  const run = async (scraper) => {
     try {
       // "starting" (not "searching") — the scraper hasn't logged in / begun searching yet.
       // The scrapers emit their own logging_in/searching/extracting once they actually start,
@@ -45,9 +57,11 @@ async function runComparison(params, onProgress = () => {}) {
       onProgress(scraper.name, 'error', `Error on ${scraper.label}: ${err.message}`);
       results[scraper.name] = [];
     }
-  });
+  };
 
-  await Promise.allSettled(tasks);
+  // Two waves, not one: see the header note on browser contention.
+  await Promise.allSettled(firstWave.map(run));
+  await Promise.allSettled(secondWave.map(run));
 
   // Compare and match flights across platforms
   const comparisons = compareResults(results);
@@ -69,6 +83,7 @@ async function runComparison(params, onProgress = () => {}) {
       sharetripCount: results.sharetrip?.length || 0,
       gozayaanCount: results.gozayaan?.length || 0,
       shohozCount: results.shohoz?.length || 0,
+      firsttripCount: results.firsttrip?.length || 0,
     },
   };
 }

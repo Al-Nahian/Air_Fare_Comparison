@@ -13,7 +13,7 @@
  * Lead times, not fixed dates: each route is priced N days ahead of the run date, so "DAC-KTM at 30
  * days out" is the same measurement every night and files stay comparable across days.
  *
- * One row per route, not per flight: the row is the first itinerary carried by ALL THREE platforms.
+ * One row per route, not per flight: the row is the first itinerary carried by ALL FOUR platforms.
  * `compareResults` already sorts by platform coverage and then by price, so that first match is also
  * the cheapest fully-comparable flight — the top row of the dashboard. A flight missing from any
  * platform is skipped, because a partial row can't answer "who was cheapest today".
@@ -40,7 +40,7 @@ const LOG_FILE = path.join(RESULTS_DIR, 'snapshot-log.txt');
 // One merged file per run, named for the date the search was executed.
 const dailyCsvPath = (searchDate) => path.join(RESULTS_DIR, `comparison_list_${searchDate}.csv`);
 
-const PLATFORMS = ['sharetrip', 'gozayaan', 'shohoz'];
+const PLATFORMS = ['sharetrip', 'gozayaan', 'shohoz', 'firsttrip'];
 
 /**
  * The dashboard's comparison-list export columns (see `exportComparisonListCSV` in
@@ -56,6 +56,7 @@ const HEADERS = [
   'ShareTrip Base', 'ShareTrip Gross', 'ShareTrip Discount',
   'Difference', 'Percentage',
   'GoZayaan Base', 'GoZayaan Gross', 'GoZayaan Discount',
+  'FirstTrip Base', 'FirstTrip Gross', 'FirstTrip Discount',
 ];
 
 function log(line) {
@@ -82,6 +83,7 @@ function buildRows(entries) {
     const shohoz = match.platforms?.shohoz || {};
     const sharetrip = match.platforms?.sharetrip || {};
     const gozayaan = match.platforms?.gozayaan || {};
+    const firsttrip = match.platforms?.firsttrip || {};
 
     const shohozPlatform = shohoz.platformPrice ?? '';
     const sharetripDiscount = sharetrip.totalBkash ?? '';
@@ -102,6 +104,7 @@ function buildRows(entries) {
       sharetrip.baseFare ?? '', sharetrip.totalStandard ?? '', sharetripDiscount,
       difference, percentage,
       gozayaan.baseFare ?? '', gozayaan.totalStandard ?? '', gozayaan.totalBkash ?? '',
+      firsttrip.baseFare ?? '', firsttrip.totalStandard ?? '', firsttrip.totalBkash ?? '',
     ];
   });
 }
@@ -195,7 +198,7 @@ async function main() {
       const result = await runComparison({ from, to, date: journeyDate, returnDate });
       const counts = result.meta || {};
 
-      for (const [name, count] of [['sharetrip', counts.sharetripCount], ['gozayaan', counts.gozayaanCount], ['shohoz', counts.shohozCount]]) {
+      for (const [name, count] of [['sharetrip', counts.sharetripCount], ['gozayaan', counts.gozayaanCount], ['shohoz', counts.shohozCount], ['firsttrip', counts.firsttripCount]]) {
         if (!count) {
           const note = `${label} — ${name} returned 0 flights`;
           warnings.push(note);
@@ -207,8 +210,8 @@ async function main() {
       if (!entry) {
         // Either a platform failed, or genuinely no single itinerary is sold by all three. Both
         // leave nothing comparable to record, so say so rather than writing a half-empty row.
-        failures.push(`${label} — no itinerary carried by all 3 platforms`);
-        log(`FAIL ${label} — no itinerary on all 3 platforms (ST ${counts.sharetripCount}, GZ ${counts.gozayaanCount}, SH ${counts.shohozCount})`);
+        failures.push(`${label} — no itinerary carried by all 4 platforms`);
+        log(`FAIL ${label} — no itinerary on all 4 platforms (ST ${counts.sharetripCount}, GZ ${counts.gozayaanCount}, SH ${counts.shohozCount}, FT ${counts.firsttripCount})`);
         continue;
       }
 
@@ -222,7 +225,7 @@ async function main() {
 
       entries.push(entry);
       const s = entry.summary;
-      log(`ok   ${label} — ${s.flight_no} ${s.airline} | ST ${s.sharetrip_discounted} · GZ ${s.gozayaan_discounted} · SH ${s.shohoz_discounted} | cheapest ${s.cheapest_discounted_platform} in ${((Date.now() - t0) / 1000).toFixed(0)}s`);
+      log(`ok   ${label} — ${s.flight_no} ${s.airline} | ST ${s.sharetrip_discounted} · GZ ${s.gozayaan_discounted} · SH ${s.shohoz_discounted} · FT ${s.firsttrip_discounted} | cheapest ${s.cheapest_discounted_platform} in ${((Date.now() - t0) / 1000).toFixed(0)}s`);
     } catch (err) {
       failures.push(`${label} — ${err.message}`);
       log(`FAIL ${label} — ${err.message}`);
