@@ -989,6 +989,14 @@ body.has-results .bg-plane {
 }
 
 .flight-card {
+  /* A busy route renders 166 cards / ~14,000 DOM nodes down a 65,000px page, and laying out and
+     painting all of them is what pins scrolling at ~10fps. content-visibility lets the browser skip
+     layout and paint for anything off-screen, which is the single biggest win available here.
+     contain-intrinsic-size supplies a placeholder height so the scrollbar stays honest; the auto
+     keyword means the real height is remembered once a card has been rendered. */
+  content-visibility: auto;
+  contain-intrinsic-size: auto 390px;
+
   /* Deliberately NO backdrop-filter — same reasoning as .airline-filter__pill. There is one card
      per comparison (20+ on a busy route), and each blur surface is re-read and re-blurred on every
      scroll frame, which is what made the results list stutter. The near-opaque colour keeps the

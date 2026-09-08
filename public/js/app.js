@@ -571,10 +571,42 @@
         </div>
       `;
     } else {
-      list.forEach((flight, idx) => {
-        resultsContainer.appendChild(createFlightCard(flight, idx));
-      });
+      renderCardsChunked(list);
     }
+  }
+
+  /**
+   * Building 165 cards in one pass blocked the main thread for ~299ms — felt as a freeze the moment
+   * results appear. The first chunk covers what's on screen and goes in synchronously so results
+   * still appear instantly; the rest are appended a frame at a time, so no single task is long
+   * enough to block input.
+   *
+   * Each call takes a new token: a filter change re-renders, and without this the previous run's
+   * queued chunks would keep appending cards that no longer match.
+   */
+  let renderToken = 0;
+  const FIRST_CHUNK = 12;
+  const CHUNK_SIZE = 24;
+
+  function renderCardsChunked(list) {
+    const token = ++renderToken;
+
+    const appendRange = (start, end) => {
+      const frag = document.createDocumentFragment();
+      for (let i = start; i < end; i++) frag.appendChild(createFlightCard(list[i], i));
+      resultsContainer.appendChild(frag);
+    };
+
+    appendRange(0, Math.min(FIRST_CHUNK, list.length));
+
+    let next = FIRST_CHUNK;
+    const pump = () => {
+      if (token !== renderToken || next >= list.length) return;
+      appendRange(next, Math.min(next + CHUNK_SIZE, list.length));
+      next += CHUNK_SIZE;
+      requestAnimationFrame(pump);
+    };
+    if (list.length > FIRST_CHUNK) requestAnimationFrame(pump);
   }
 
   // ============ Airline Filter ============
@@ -716,7 +748,8 @@
     }
     return {
       className: ' flight-card__airline-icon--logo',
-      html: `<img src="${flight.airlineLogo}" alt="${flight.airline || 'Airline'} logo" class="flight-card__airline-img" onerror="this.parentElement.classList.remove('flight-card__airline-icon--logo');this.style.display='none';this.nextElementSibling.style.display='flex';" /><span class="flight-card__airline-fallback">${initial}</span>`,
+      // lazy + async: a busy route emits ~700 logos, nearly all of them off-screen on first paint.
+      html: `<img src="${flight.airlineLogo}" alt="${flight.airline || 'Airline'} logo" class="flight-card__airline-img" loading="lazy" decoding="async" width="28" height="28" onerror="this.parentElement.classList.remove('flight-card__airline-icon--logo');this.style.display='none';this.nextElementSibling.style.display='flex';" /><span class="flight-card__airline-fallback">${initial}</span>`,
     };
   }
 
@@ -729,7 +762,7 @@
 
   function platformBadge(platformKey, platformLabel) {
     const logo = PLATFORM_LOGOS[platformKey];
-    return `<span class="platform-price__name platform-price__name--${platformKey}">${logo ? `<img class="platform-logo" src="${logo}" alt="" />` : ''}${platformLabel}</span>`;
+    return `<span class="platform-price__name platform-price__name--${platformKey}">${logo ? `<img class="platform-logo" src="${logo}" alt="" loading="lazy" decoding="async" width="16" height="16" />` : ''}${platformLabel}</span>`;
   }
 
   function renderPlatformPrice(platformKey, platformLabel, data, flight, platformId) {
