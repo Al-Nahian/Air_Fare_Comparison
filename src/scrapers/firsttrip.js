@@ -91,7 +91,15 @@ async function runSearch(page, from, to, date) {
     .locator('button:visible', { hasText: 'Search' })
     .first()
     .click({ timeout: SCRAPER_CONFIG.timeout });
-  await page.waitForLoadState('networkidle', { timeout: SCRAPER_CONFIG.searchTimeout }).catch(() => {});
+
+  // Wait for the SEARCH RESPONSE, not for the page to fall quiet. `res.text()` above resolves only
+  // once the whole SSE stream has ended, so a non-null rawBody already means every fare batch has
+  // arrived — there is nothing further to gain by waiting for networkidle, which keeps ticking on
+  // analytics, fonts and images long after the fares are in.
+  const deadline = Date.now() + SCRAPER_CONFIG.searchTimeout;
+  while (!rawBody && Date.now() < deadline) {
+    await new Promise((r) => setTimeout(r, 200));
+  }
 
   return rawBody ? parseSSE(rawBody) : [];
 }

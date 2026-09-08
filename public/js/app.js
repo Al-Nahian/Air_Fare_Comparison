@@ -24,6 +24,7 @@
   const tripTypeButtons = Array.from(document.querySelectorAll('.trip-type-btn'));
   const searchForm = document.getElementById('searchForm');
   const compareBtn = document.getElementById('compareBtn');
+  const loadMoreBtn = document.getElementById('loadMoreBtn');
   const swapBtn = document.getElementById('swapBtn');
   const progressSection = document.getElementById('progressSection');
   const resultsSection = document.getElementById('resultsSection');
@@ -559,6 +560,7 @@
 
   function renderCards(list) {
     resultsContainer.innerHTML = '';
+    if (loadMoreBtn) loadMoreBtn.style.display = 'none';
 
     if (list.length === 0) {
       resultsContainer.innerHTML = `
@@ -571,9 +573,39 @@
         </div>
       `;
     } else {
-      renderCardsChunked(list);
+      pageList = list;
+      shownCount = 0;
+      showNextPage();
     }
   }
+
+  /**
+   * Paged rendering. The full result set stays in memory and is never re-rendered — each press
+   * appends the next slice, so pressing "show more" costs the same whether it is the first press or
+   * the tenth. renderCards resets the count, so changing the airline filter starts from page one.
+   */
+  const PAGE_SIZE = 20;
+  let pageList = [];
+  let shownCount = 0;
+
+  function showNextPage() {
+    const next = Math.min(shownCount + PAGE_SIZE, pageList.length);
+    renderCardsChunked(pageList, shownCount, next);
+    shownCount = next;
+    updateLoadMore();
+  }
+
+  function updateLoadMore() {
+    if (!loadMoreBtn) return;
+    const remaining = pageList.length - shownCount;
+    loadMoreBtn.style.display = remaining > 0 ? 'flex' : 'none';
+    if (remaining > 0) {
+      loadMoreBtn.querySelector('.load-more__count').textContent =
+        `${remaining} more`;
+    }
+  }
+
+  if (loadMoreBtn) loadMoreBtn.addEventListener('click', showNextPage);
 
   /**
    * Building 165 cards in one pass blocked the main thread for ~299ms — felt as a freeze the moment
@@ -588,7 +620,7 @@
   const FIRST_CHUNK = 12;
   const CHUNK_SIZE = 24;
 
-  function renderCardsChunked(list) {
+  function renderCardsChunked(list, from, to) {
     const token = ++renderToken;
 
     const appendRange = (start, end) => {
@@ -597,16 +629,17 @@
       resultsContainer.appendChild(frag);
     };
 
-    appendRange(0, Math.min(FIRST_CHUNK, list.length));
+    const firstEnd = Math.min(from + FIRST_CHUNK, to);
+    appendRange(from, firstEnd);
 
-    let next = FIRST_CHUNK;
+    let next = firstEnd;
     const pump = () => {
-      if (token !== renderToken || next >= list.length) return;
-      appendRange(next, Math.min(next + CHUNK_SIZE, list.length));
+      if (token !== renderToken || next >= to) return;
+      appendRange(next, Math.min(next + CHUNK_SIZE, to));
       next += CHUNK_SIZE;
       requestAnimationFrame(pump);
     };
-    if (list.length > FIRST_CHUNK) requestAnimationFrame(pump);
+    if (to > firstEnd) requestAnimationFrame(pump);
   }
 
   // ============ Airline Filter ============
