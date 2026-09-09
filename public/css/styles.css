@@ -1213,6 +1213,31 @@ body.has-results .bg-plane {
   cursor: default;
 }
 
+.platform-price--pending p {
+  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.platform-price__spinner {
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--bg-glass-border);
+  border-top-color: var(--text-accent);
+  border-radius: 50%;
+  animation: platformSpin 0.8s linear infinite;
+  flex: none;
+}
+
+@keyframes platformSpin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .platform-price__spinner { animation: none; }
+}
+
 .load-more {
   display: flex;
   align-items: center;

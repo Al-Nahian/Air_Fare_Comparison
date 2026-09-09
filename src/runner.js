@@ -20,7 +20,7 @@ const { compareResults } = require('./compare');
  * @param {function} onProgress - callback(platform, status, message)
  * @returns {Promise<object>} comparison results
  */
-async function runComparison(params, onProgress = () => {}) {
+async function runComparison(params, onProgress = () => {}, onPartial = null) {
   // `returnDate` (optional) switches every scraper into bundled round-trip mode: each result is a
   // single outbound+return itinerary priced the way the platform actually sells it.
   const { from, to, date, returnDate } = params;
@@ -41,6 +41,29 @@ async function runComparison(params, onProgress = () => {}) {
 
   const results = {};
 
+  // Every payload — partial or final — has the same shape, so the dashboard renders a half-finished
+  // search through exactly the same path as a complete one.
+  const buildPayload = (pending) => ({
+    route: { from, to },
+    date,
+    returnDate: returnDate || null,
+    tripType: isRoundTrip ? 'roundtrip' : 'oneway',
+    comparisons: compareResults(results),
+    raw: results,
+    partial: pending.length > 0,
+    pending,
+    meta: {
+      timestamp: new Date().toISOString(),
+      sharetripCount: results.sharetrip?.length || 0,
+      gozayaanCount: results.gozayaan?.length || 0,
+      shohozCount: results.shohoz?.length || 0,
+      firsttripCount: results.firsttrip?.length || 0,
+    },
+  });
+
+  const allNames = [...firstWave, ...secondWave].map((s) => s.name);
+  const stillPending = () => allNames.filter((n) => !(n in results));
+
   const run = async (scraper) => {
     try {
       // "starting" (not "searching") — the scraper hasn't logged in / begun searching yet.
@@ -57,35 +80,28 @@ async function runComparison(params, onProgress = () => {}) {
       onProgress(scraper.name, 'error', `Error on ${scraper.label}: ${err.message}`);
       results[scraper.name] = [];
     }
+
+    // Shohoz answers in ~6s while ShareTrip takes ~30s. Publishing after each platform lets the
+    // dashboard show real prices immediately instead of a spinner until the slowest one finishes.
+    if (onPartial) {
+      try {
+        onPartial(buildPayload(stillPending()));
+      } catch (e) {
+        // A rendering/broadcast problem must never abort the search itself.
+      }
+    }
   };
 
   // Two waves, not one: see the header note on browser contention.
   await Promise.allSettled(firstWave.map(run));
   await Promise.allSettled(secondWave.map(run));
 
-  // Compare and match flights across platforms
-  const comparisons = compareResults(results);
-
   // Deliberately writes NO file here. Every search used to drop its own CSV into results/, which
   // accumulated ~90 files of clutter that nothing ever read — and under the nightly job, whose
   // departure dates roll daily, it would have added 11 more every night. Callers that want a file
   // write one themselves: the dashboard exports client-side, and scripts/daily-snapshot.js writes a
   // single merged file per day.
-  return {
-    route: { from, to },
-    date,
-    returnDate: returnDate || null,
-    tripType: isRoundTrip ? 'roundtrip' : 'oneway',
-    comparisons,
-    raw: results,
-    meta: {
-      timestamp: new Date().toISOString(),
-      sharetripCount: results.sharetrip?.length || 0,
-      gozayaanCount: results.gozayaan?.length || 0,
-      shohozCount: results.shohoz?.length || 0,
-      firsttripCount: results.firsttrip?.length || 0,
-    },
-  };
+  return buildPayload([]);
 }
 
 module.exports = { runComparison };

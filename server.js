@@ -57,6 +57,15 @@ wss.on('connection', (ws) => {
   });
 });
 
+// Partial result sets are broadcast the same way progress is. Like progress events, these reach
+// every connected client — a pre-existing limitation of this dashboard, not new here.
+function broadcastPartial(searchId, payload) {
+  const msg = JSON.stringify({ type: 'partial', searchId, payload });
+  for (const client of clients) {
+    if (client.readyState === 1) client.send(msg);
+  }
+}
+
 function broadcastProgress(platform, status, message) {
   const payload = JSON.stringify({ type: 'progress', platform, status, message });
   for (const client of clients) {
@@ -83,7 +92,7 @@ app.get('/api/airports', (req, res) => {
 // POST /api/compare — trigger scraping and return comparison
 app.post('/api/compare', async (req, res) => {
   // `returnDate` is optional — when present, run a bundled round-trip comparison.
-  const { from, to, date, returnDate } = req.body;
+  const { from, to, date, returnDate, searchId } = req.body;
 
   if (!from || !to || !date) {
     return res.status(400).json({ error: 'Missing required fields: from, to, date' });
@@ -112,7 +121,14 @@ app.post('/api/compare', async (req, res) => {
   broadcastProgress('all', 'started', 'Starting price comparison...');
 
   try {
-    const results = await runComparison({ from, to, date, returnDate }, broadcastProgress);
+    // Partials still reach every socket, but each carries the id of the search that produced it so a
+// client renders only its own. Without this, two people searching at once overwrite each other's
+    // results table — progress text mixing was cosmetic, result data is not.
+    const results = await runComparison(
+      { from, to, date, returnDate },
+      broadcastProgress,
+      (payload) => broadcastPartial(searchId, payload)
+    );
 
     broadcastProgress('all', 'complete', 'Comparison complete!');
     console.log(`[API] Comparison complete: ${results.comparisons.length} flights matched`);

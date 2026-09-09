@@ -9,6 +9,9 @@
   let airports = [];
   let ws = null;
   let lastResults = null;
+  // Identifies THIS page's in-flight search, so partials broadcast for someone else's search are
+  // ignored rather than replacing what is on screen.
+  let currentSearchId = null;
   let activeAirlineFilters = new Set(); // empty = show all
 
   // ============ DOM Elements ============
@@ -280,6 +283,11 @@
         const data = JSON.parse(event.data);
         if (data.type === 'progress') {
           updateProgress(data.platform, data.status, data.message);
+        } else if (data.type === 'partial' && data.searchId && data.searchId === currentSearchId) {
+          // A platform finished. Show what we have rather than holding everything back until the
+          // slowest one lands — Shohoz answers in ~6s where ShareTrip takes ~30s.
+          lastResults = data.payload;
+          renderResults(data.payload, true);
         }
       } catch (e) {
         // ignore parse errors
@@ -487,10 +495,11 @@
       document.body.classList.remove('has-results');
 
       try {
+        currentSearchId = 's' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
         const res = await fetch('/api/compare', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ from, to, date, returnDate }),
+          body: JSON.stringify({ from, to, date, returnDate, searchId: currentSearchId }),
         });
 
         if (!res.ok) {
@@ -499,6 +508,7 @@
         }
 
         const data = await res.json();
+        currentSearchId = null;   // final answer is in; ignore any late partials
         lastResults = data;
         renderResults(data);
       } catch (err) {
@@ -531,8 +541,18 @@
   }
 
   // ============ Render Results ============
-  function renderResults(data) {
+  // Platforms whose scraper has not reported yet, so an empty column can say "searching" instead of
+  // claiming the flight is unavailable there — during a progressive search those are very different
+  // things, and only one of them is true.
+  let pendingPlatforms = new Set();
+
+  const PLATFORM_NAMES = {
+    sharetrip: 'ShareTrip', gozayaan: 'GoZayaan', shohoz: 'Shohoz', firsttrip: 'FirstTrip',
+  };
+
+  function renderResults(data, isPartial = false) {
     const { comparisons, route, date, returnDate, meta } = data;
+    pendingPlatforms = new Set(isPartial ? (data.pending || []) : []);
     const isRoundTrip = data.tripType === 'roundtrip' || !!returnDate;
 
     // Update header
@@ -546,16 +566,37 @@
     resultsTitle.textContent = isRoundTrip ? `${fromLabel} ⇄ ${toLabel}` : `${fromLabel} → ${toLabel}`;
     const dateLabel = isRoundTrip ? `${dateFormatted} – ${formatDate(returnDate)}` : dateFormatted;
     const tripLabel = isRoundTrip ? 'round trip' : 'flight';
-    resultsSubtitle.textContent = `${dateLabel} · ${comparisons.length} ${tripLabel}${comparisons.length !== 1 ? 's' : ''} compared · ShareTrip (${meta.sharetripCount}) · GoZayaan (${meta.gozayaanCount}) · Shohoz (${meta.shohozCount}) · FirstTrip (${meta.firsttripCount ?? 0})`;
+    const waiting = (data.pending || []).map((p) => PLATFORM_NAMES[p] || p);
+    const waitingLabel = waiting.length ? ` · still searching ${waiting.join(', ')}…` : '';
+    resultsSubtitle.textContent = `${dateLabel} · ${comparisons.length} ${tripLabel}${comparisons.length !== 1 ? 's' : ''} compared · ShareTrip (${meta.sharetripCount}) · GoZayaan (${meta.gozayaanCount}) · Shohoz (${meta.shohozCount}) · FirstTrip (${meta.firsttripCount ?? 0})${waitingLabel}`;
 
-    activeAirlineFilters = new Set();
+    // A partial update must not yank the page around: keep whatever airline the user picked and how
+    // many cards they had expanded, otherwise every platform landing would reset both.
+    const keptFilters = isPartial ? new Set(activeAirlineFilters) : new Set();
+    const keptShown = isPartial ? shownCount : 0;
+
+    activeAirlineFilters = keptFilters;
     renderAirlineFilters(comparisons);
-    renderCards(comparisons);
+    restoreFilterPills();
+    renderCards(getFilteredComparisons());
+    while (shownCount < keptShown && shownCount < pageList.length) showNextPage();
 
-    // Show results — flags the background plane to pass less often on this page.
-    progressSection.style.display = 'none';
+    // The progress panel stays up while platforms are still reporting.
+    progressSection.style.display = isPartial ? '' : 'none';
     resultsSection.style.display = 'block';
     document.body.classList.add('has-results');
+  }
+
+  /** renderAirlineFilters rebuilds the pills, so re-mark whichever were active. */
+  function restoreFilterPills() {
+    const pills = airlineFilter.querySelectorAll('.airline-filter__pill');
+    if (!pills.length) return;
+    const anyActive = activeAirlineFilters.size > 0;
+    for (const pill of pills) {
+      const name = pill.dataset.airline;
+      const on = name === '__all__' ? !anyActive : activeAirlineFilters.has(name);
+      pill.classList.toggle('airline-filter__pill--active', on);
+    }
   }
 
   function renderCards(list) {
@@ -800,11 +841,15 @@
 
   function renderPlatformPrice(platformKey, platformLabel, data, flight, platformId) {
     if (!data) {
+      const searching = pendingPlatforms.has(platformKey);
+      const message = searching
+        ? `<span class="platform-price__spinner"></span>Searching ${platformLabel}…`
+        : 'Not available on this platform';
       return `
-        <div class="platform-price platform-price--empty">
+        <div class="platform-price platform-price--empty${searching ? ' platform-price--pending' : ''}">
           <div>
             ${platformBadge(platformKey, platformLabel)}
-            <p style="margin-top:12px; font-size:0.8rem;">Not available on this platform</p>
+            <p style="margin-top:12px; font-size:0.8rem;">${message}</p>
           </div>
         </div>
       `;
