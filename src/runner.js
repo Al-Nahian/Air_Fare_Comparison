@@ -2,10 +2,16 @@
  * Scraper Runner
  * Orchestrates the scrapers and emits progress events.
  *
- * ShareTrip, GoZayaan and Shohoz run together; FirstTrip runs after them. Each browser-based
- * scraper drives its own headless Chromium, and running all four at once measurably starves them —
- * GoZayaan returned zero flights twice under that load while succeeding on its own. Keeping peak
- * concurrency at two browsers costs about 12s per search and keeps the other three untouched.
+ * Each browser-based scraper drives its own headless Chromium, and running all four at once
+ * measurably starves them — GoZayaan returned zero flights twice under that load while succeeding
+ * on its own. So at most two browsers run at a time. Shohoz is exempt: it is a plain fetch with no
+ * browser, so it always starts immediately.
+ *
+ * Within that budget the order matters. ShareTrip averages 21.6s against GoZayaan's 15.9s and
+ * FirstTrip's 7.8s, so ShareTrip holds one slot from the start — it is the long pole, and any
+ * second spent not running it is a second added to the total. The other slot takes the rest
+ * shortest-first, which fills a second column at ~7.8s instead of ~15.9s and finishes the whole
+ * search around 23.7s rather than the 29.3s the old fixed waves cost.
  */
 
 const sharetripScraper = require('./scrapers/sharetrip');
@@ -26,18 +32,21 @@ async function runComparison(params, onProgress = () => {}, onPartial = null) {
   const { from, to, date, returnDate } = params;
   const isRoundTrip = !!returnDate;
 
-  const firstWave = [
-    { name: 'sharetrip', label: 'ShareTrip', fn: sharetripScraper },
-    { name: 'gozayaan', label: 'GoZayaan', fn: gozayaanScraper },
-    { name: 'shohoz', label: 'Shohoz', fn: shohozScraper },
-  ];
+  // No browser, so it costs nothing against the concurrency budget.
+  const instant = [{ name: 'shohoz', label: 'Shohoz', fn: shohozScraper }];
 
   // FirstTrip's search API is one-way only — it takes no returnDate. Handing it a round trip would
   // return ONE-WAY fares presented as though they were the round trip, which is wrong data rather
   // than a missing feature, so it sits out those searches entirely.
-  const secondWave = isRoundTrip
-    ? []
-    : [{ name: 'firsttrip', label: 'FirstTrip', fn: firsttripScraper }];
+  //
+  // Longest first, then shortest-first for the remaining slot — see the header note.
+  const browserQueue = [
+    { name: 'sharetrip', label: 'ShareTrip', fn: sharetripScraper },
+    ...(isRoundTrip ? [] : [{ name: 'firsttrip', label: 'FirstTrip', fn: firsttripScraper }]),
+    { name: 'gozayaan', label: 'GoZayaan', fn: gozayaanScraper },
+  ];
+
+  const BROWSER_CONCURRENCY = 2;
 
   const results = {};
 
@@ -61,7 +70,7 @@ async function runComparison(params, onProgress = () => {}, onPartial = null) {
     },
   });
 
-  const allNames = [...firstWave, ...secondWave].map((s) => s.name);
+  const allNames = [...instant, ...browserQueue].map((s) => s.name);
   const stillPending = () => allNames.filter((n) => !(n in results));
 
   const run = async (scraper) => {
@@ -92,9 +101,20 @@ async function runComparison(params, onProgress = () => {}, onPartial = null) {
     }
   };
 
-  // Two waves, not one: see the header note on browser contention.
-  await Promise.allSettled(firstWave.map(run));
-  await Promise.allSettled(secondWave.map(run));
+  // Two workers pulling from one ordered queue, rather than fixed waves. A wave can only advance
+  // when its slowest member finishes, which left FirstTrip running alone for ~7.8s while the other
+  // browsers sat idle; a queue refills a slot the moment it frees up.
+  let next = 0;
+  const worker = async () => {
+    while (next < browserQueue.length) {
+      await run(browserQueue[next++]);
+    }
+  };
+
+  await Promise.allSettled([
+    ...instant.map(run),
+    ...Array.from({ length: BROWSER_CONCURRENCY }, worker),
+  ]);
 
   // Deliberately writes NO file here. Every search used to drop its own CSV into results/, which
   // accumulated ~90 files of clutter that nothing ever read — and under the nightly job, whose
