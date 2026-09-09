@@ -1,4 +1,4 @@
-# Air Competition Analysis
+# Air Fare Comparison
 
 Compares real-time flight prices across **ShareTrip**, **GoZayaan**, **Shohoz** and **FirstTrip** —
 standard vs. discounted fares, side by side, for the same itinerary.
