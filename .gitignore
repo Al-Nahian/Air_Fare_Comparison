@@ -1,10 +1,13 @@
 node_modules/
 .env
-results/
 *.log
 .claude
 .vscode
 .sessions/
+
+# The daily Task Scheduler job (its scripts, route list, and output workbook/CSVs/logs) is a
+# separate operation from the dashboard app this repo publishes — it stays local, never pushed.
+automation/
 
 # AGENT.md declares itself must never be committed or pushed
 AGENT.md
