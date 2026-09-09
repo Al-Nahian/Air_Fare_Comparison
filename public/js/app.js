@@ -625,7 +625,7 @@
    * appends the next slice, so pressing "show more" costs the same whether it is the first press or
    * the tenth. renderCards resets the count, so changing the airline filter starts from page one.
    */
-  const PAGE_SIZE = 20;
+  const PAGE_SIZE = 15;
   let pageList = [];
   let shownCount = 0;
 
