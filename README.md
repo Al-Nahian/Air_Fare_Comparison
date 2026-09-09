@@ -37,38 +37,11 @@ Copy `.env.example` to `.env` and fill it in. **Never commit `.env`** — it is 
 | `GOZAYAAN_EMAIL`, `GOZAYAAN_PASSWORD` | yes | GoZayaan login |
 | `PORT` | no | Listen port, default `3000` |
 | `MAX_CONCURRENT_COMPARISONS` | no | Simultaneous searches, default `2` |
-| `SMTP_USER`, `SMTP_APP_PASSWORD`, `SMTP_TO` | no | Daily snapshot email |
 
 Shohoz needs no credentials — its search API is public.
 
 Logins are cached in `.sessions/` so repeat searches skip the login step. Expired sessions are
 detected and refreshed automatically.
-
-`SMTP_APP_PASSWORD` must be a Gmail **app password**, not your account password: enable 2-Step
-Verification, then create one at <https://myaccount.google.com/apppasswords>.
-
----
-
-## Daily price tracking
-
-`scripts/daily-snapshot.js` prices a list of routes unattended and writes one merged CSV per run.
-
-```bash
-node scripts/daily-snapshot.js
-```
-
-- Routes and lead times are configured in `scripts/routes.json` — edit freely, no code changes.
-- Each route is priced N days ahead of the run date, so "DAC→KTM at 30 days out" stays the same
-  measurement every night.
-- Output is `results/comparison_list_<search date>.csv`, in the same format the dashboard's
-  "Add to Comparison" list exports.
-- Each row is the cheapest itinerary carried by **all three** platforms — a route with no such
-  flight is reported as a failure rather than written as a partial row.
-- Exits non-zero if any route fails, so a scheduler surfaces the problem instead of silently
-  recording empty days. Details go to `results/snapshot-log.txt`.
-
-Schedule it with cron or Windows Task Scheduler. Keep the run time fixed — prices move through the
-day, so a varying run time makes figures non-comparable.
 
 ---
 
@@ -83,11 +56,6 @@ src/
   session-store.js     saves/restores platform logins
   scrapers/            sharetrip.js, gozayaan.js, shohoz.js
 public/                dashboard (vanilla JS, no build step)
-scripts/
-  daily-snapshot.js    unattended daily price capture
-  routes.json          which routes to track
-  mailer.js            snapshot email
-results/               generated CSVs and run log (gitignored)
 ```
 
 Each platform charges a different fee, verified against real checkout pages — ShareTrip and
